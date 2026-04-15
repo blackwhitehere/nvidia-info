@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Comprehensive guide to NVIDIA's AI infrastructure stack for LLM training and serving — covering H100, H200, GB200 Blackwell GPUs, CUDA, TensorRT-LLM, vLLM, NVLink, InfiniBand, and more." />
   <title>Nvidia AI Infrastructure Stack – LLM Training &amp; Serving</title>
   <script src="chart.umd.js"></script>
   <style>
@@ -205,6 +206,15 @@
       color: var(--muted); font-size: .83rem;
     }
 
+    /* ── skip-to-content ── */
+    .skip-link {
+      position: absolute; top: -100%; left: 1rem;
+      background: var(--green); color: var(--dark); padding: .5rem 1rem;
+      border-radius: 0 0 8px 8px; font-weight: 700; z-index: 200;
+      text-decoration: none; font-size: .9rem;
+    }
+    .skip-link:focus { top: 0; }
+
     /* ── responsiveness ── */
     @media (max-width: 600px) {
       .stack-row .layer-label { display: none; }
@@ -212,6 +222,8 @@
   </style>
 </head>
 <body>
+
+<a class="skip-link" href="#overview">Skip to content</a>
 
 <!-- ── Navigation ── -->
 <nav>
@@ -222,6 +234,8 @@
   <a href="#training">Training</a>
   <a href="#inference">Inference</a>
   <a href="#datacenter">Data Center</a>
+  <a href="#orchestration">Orchestration</a>
+  <a href="#labs">Who Uses What</a>
   <a href="#benchmarks">Benchmarks</a>
   <a href="#references">References</a>
 </nav>
@@ -236,7 +250,7 @@
     large language models at data-center scale.
   </p>
   <div class="tags">
-    <span class="tag">H100 / H200 / GB200</span>
+    <span class="tag">H100 / H200 / B200 / GB200</span>
     <span class="tag">CUDA 12</span>
     <span class="tag">PyTorch 2</span>
     <span class="tag">Megatron-LM</span>
@@ -254,7 +268,7 @@
 <section id="overview">
   <h2><span class="emoji">🗂️</span>Full Technology Stack – Layer by Layer</h2>
   <p class="section-sub">
-    Each abstraction layer builds on the one below. Click a layer to learn more in the sections that follow.
+    Each abstraction layer builds on the one below. Explore the sections that follow for deeper detail on each layer.
   </p>
 
   <div class="stack">
@@ -359,8 +373,9 @@
         <h3>🌐 High-Speed Interconnects &amp; Networking</h3>
         <p>GPU-to-GPU communication fabric enabling ultra-low-latency collective operations for model parallelism at scale.</p>
         <div class="chips">
-          <span class="chip hl-b">NVLink 4 (900 GB/s)</span>
-          <span class="chip hl-b">NVSwitch 3 (13.6 TB/s)</span>
+          <span class="chip hl-b">NVLink 4 (900 GB/s – Hopper)</span>
+          <span class="chip hl-b">NVLink 5 (1.8 TB/s – Blackwell)</span>
+          <span class="chip hl-b">NVSwitch 3 / NVSwitch 4</span>
           <span class="chip hl-b">InfiniBand NDR 400G</span>
           <span class="chip hl-b">NVIDIA Quantum-2 IB Switch</span>
           <span class="chip">GPUDirect RDMA</span>
@@ -380,6 +395,7 @@
         <div class="chips">
           <span class="chip hl">H100 SXM5 (80GB HBM3)</span>
           <span class="chip hl">H200 SXM (141GB HBM3e)</span>
+          <span class="chip hl">B200 (192GB HBM3e – Blackwell)</span>
           <span class="chip hl">GB200 NVL72 (Blackwell)</span>
           <span class="chip hl">DGX H100 (8× H100)</span>
           <span class="chip hl">DGX SuperPOD</span>
@@ -413,7 +429,7 @@
 <section id="hardware">
   <h2><span class="emoji">🖥️</span>Hardware Layer</h2>
   <p class="section-sub">
-    NVIDIA's H100, H200 and the new Blackwell GB200 are the backbone of every leading AI lab's infrastructure.
+    NVIDIA's H100, H200, and the new Blackwell B200 &amp; GB200 are the backbone of every leading AI lab's infrastructure.
   </p>
 
   <div class="cards">
@@ -439,8 +455,17 @@
       <div class="card-icon">⚫</div>
       <h3>GB200 NVL72 (Blackwell)</h3>
       <p>
-        72 GPUs + 36 Grace CPUs in one NVL rack, 1.4 ExaFLOPS FP4 inference,
-        130 TB/s NVLink bandwidth. 30× inference speedup for LLM serving vs H100.
+        72 Blackwell GPUs + 36 Grace CPUs in one NVL rack, 1.4 ExaFLOPS FP4 inference,
+        130 TB/s NVLink 5 bandwidth. 30× inference speedup for LLM serving vs H100.
+      </p>
+      <span class="badge">Blackwell Architecture</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🟣</div>
+      <h3>B200 (Blackwell)</h3>
+      <p>
+        192 GB HBM3e, 8 TB/s memory bandwidth, up to 4,500 TFLOPS FP8 Tensor Core,
+        1,000W TDP. Single-GPU Blackwell part for SXM systems and DGX B200. 2.5× training speedup vs H100.
       </p>
       <span class="badge">Blackwell Architecture</span>
     </div>
@@ -449,7 +474,7 @@
       <h3>DGX H100 System</h3>
       <p>
         8× H100 SXM5 GPUs connected via NVLink 4 / NVSwitch 3,
-        640 GB total HBM3, 2× InfiniBand HDR ports, 10 TB NVMe storage. 
+        640 GB total HBM3, 8× ConnectX-7 NDR 400G InfiniBand ports (3.2 Tb/s), 10 TB NVMe storage. 
         The standard building block for AI training clusters.
       </p>
       <span class="badge">Building Block</span>
@@ -501,6 +526,12 @@
         <td class="good">192 GB × 72</td><td class="good">8.0 TB/s</td>
         <td class="good">2,500+</td><td class="good">5,000+</td>
         <td>1,200W</td><td>Next-gen Training/Inference</td>
+      </tr>
+      <tr>
+        <td><strong>B200</strong></td><td>Blackwell</td>
+        <td class="good">192 GB HBM3e</td><td class="good">8.0 TB/s</td>
+        <td class="good">2,250</td><td class="good">4,500</td>
+        <td>1,000W</td><td>Training + Inference</td>
       </tr>
       <tr>
         <td><strong>A100 SXM4</strong></td><td>Ampere</td>
@@ -938,12 +969,12 @@
   <div class="cards">
     <div class="card">
       <div class="card-icon">⚡</div>
-      <h3>NVLink 4 (Intra-node)</h3>
+      <h3>NVLink 4 / 5 (Intra-node)</h3>
       <p>
         H100: 900 GB/s bidirectional between GPUs within a DGX node via NVSwitch 3.
-        GB200 NVL72: 130 TB/s total NVLink bandwidth across 72 GPUs.
+        GB200 NVL72: 1.8 TB/s per GPU via NVLink 5 and NVSwitch 4, 130 TB/s total across 72 GPUs.
       </p>
-      <span class="badge">900 GB/s</span>
+      <span class="badge">900 GB/s – 1.8 TB/s</span>
     </div>
     <div class="card">
       <div class="card-icon">🌐</div>
@@ -1103,7 +1134,7 @@
 <!-- ══════════════════════════════════════════
      SECTION 9 – WHO USES WHAT
 ══════════════════════════════════════════ -->
-<section style="border-top:1px solid #1e1e1e; padding: 4rem 2rem; max-width:1200px; margin:0 auto;">
+<section id="labs" style="border-top:1px solid #1e1e1e; padding: 4rem 2rem; max-width:1200px; margin:0 auto;">
   <h2><span class="emoji">🏆</span>Who Uses What — Leading AI Labs</h2>
   <p class="section-sub">
     Publicly disclosed infrastructure choices from top AI labs (based on papers, blog posts, and announcements).
@@ -1133,10 +1164,10 @@
       </tr>
       <tr>
         <td><strong>Anthropic</strong></td>
-        <td>Claude 3.5 Sonnet</td>
-        <td>H100 / A100 (AWS)</td>
+        <td>Claude 3.5 / 4</td>
+        <td>H100 / custom (AWS + GCP)</td>
         <td>JAX + custom</td>
-        <td>AWS Bedrock (custom)</td>
+        <td>AWS Bedrock / GCP (custom)</td>
       </tr>
       <tr>
         <td><strong>Google DeepMind</strong></td>
@@ -1159,6 +1190,20 @@
         <td>Composer + FSDP</td>
         <td>TRT-LLM / vLLM</td>
       </tr>
+      <tr>
+        <td><strong>xAI</strong></td>
+        <td>Grok-2</td>
+        <td>H100 (Memphis Supercluster)</td>
+        <td>JAX + custom</td>
+        <td>Custom</td>
+      </tr>
+      <tr>
+        <td><strong>DeepSeek</strong></td>
+        <td>DeepSeek-V3</td>
+        <td>H800 clusters</td>
+        <td>Custom (MoE-optimised)</td>
+        <td>vLLM / SGLang</td>
+      </tr>
     </tbody>
   </table>
   </div>
@@ -1173,31 +1218,31 @@
   <p class="section-sub">All data sourced from official documentation, research papers, and public announcements.</p>
 
   <ul class="refs">
-    <li><a href="https://www.nvidia.com/en-us/data-center/h100/" target="_blank" rel="noopener">NVIDIA H100 Tensor Core GPU Architecture Overview (nvidia.com)</a></li>
-    <li><a href="https://www.nvidia.com/en-us/data-center/dgx-h100/" target="_blank" rel="noopener">NVIDIA DGX H100 System Datasheet (nvidia.com)</a></li>
-    <li><a href="https://docs.nvidia.com/cuda/index.html" target="_blank" rel="noopener">NVIDIA CUDA Documentation (docs.nvidia.com)</a></li>
-    <li><a href="https://github.com/NVIDIA/Megatron-LM" target="_blank" rel="noopener">Megatron-LM: Large, Powerful Transformer Language Models — GitHub (NVIDIA)</a></li>
-    <li><a href="https://arxiv.org/abs/2205.05198" target="_blank" rel="noopener">Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism (Shoeybi et al., 2019/2022)</a></li>
-    <li><a href="https://arxiv.org/abs/2104.04473" target="_blank" rel="noopener">Efficient Large Scale Language Modeling with Mixtures of Experts (Artetxe et al., 2021)</a></li>
-    <li><a href="https://github.com/microsoft/DeepSpeed" target="_blank" rel="noopener">DeepSpeed: Extreme-Scale Model Training for Everyone — GitHub (Microsoft)</a></li>
-    <li><a href="https://arxiv.org/abs/1910.02054" target="_blank" rel="noopener">ZeRO: Memory Optimizations Toward Training Trillion Parameter Models (Rajbhandari et al., 2020)</a></li>
-    <li><a href="https://github.com/vllm-project/vllm" target="_blank" rel="noopener">vLLM: Easy, Fast, and Cheap LLM Serving — GitHub (UC Berkeley)</a></li>
-    <li><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener">Efficient Memory Management for Large Language Model Serving with PagedAttention (Kwon et al., 2023)</a></li>
-    <li><a href="https://github.com/NVIDIA/TensorRT-LLM" target="_blank" rel="noopener">TensorRT-LLM: Optimised LLM Inference — GitHub (NVIDIA)</a></li>
-    <li><a href="https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/index.html" target="_blank" rel="noopener">NVIDIA Triton Inference Server Documentation</a></li>
-    <li><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noopener">FlashAttention: Fast and Memory-Efficient Exact Attention (Dao et al., 2022)</a></li>
-    <li><a href="https://arxiv.org/abs/2307.08691" target="_blank" rel="noopener">FlashAttention-2: Faster Attention with Better Parallelism (Dao, 2023)</a></li>
-    <li><a href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">SGLang: Fast Serving Framework for LLMs and VLMs — GitHub</a></li>
-    <li><a href="https://developer.nvidia.com/nccl" target="_blank" rel="noopener">NCCL: NVIDIA Collective Communications Library (developer.nvidia.com)</a></li>
-    <li><a href="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/" target="_blank" rel="noopener">NVIDIA MIG (Multi-Instance GPU) User Guide</a></li>
-    <li><a href="https://arxiv.org/abs/2302.13971" target="_blank" rel="noopener">LLaMA: Open and Efficient Foundation Language Models (Touvron et al., 2023)</a></li>
-    <li><a href="https://arxiv.org/abs/2307.09288" target="_blank" rel="noopener">Llama 2: Open Foundation and Fine-Tuned Chat Models (Touvron et al., 2023)</a></li>
-    <li><a href="https://mlcommons.org/benchmarks/training/" target="_blank" rel="noopener">MLPerf Training Benchmark Results (mlcommons.org)</a></li>
-    <li><a href="https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-unprecedented-trillion-parameter-llm-training-and-inference-performance/" target="_blank" rel="noopener">NVIDIA GB200 NVL72 Blog Post — Trillion Parameter LLM Performance</a></li>
-    <li><a href="https://developer.nvidia.com/dcgm" target="_blank" rel="noopener">NVIDIA Data Center GPU Manager (DCGM)</a></li>
-    <li><a href="https://github.com/huggingface/text-generation-inference" target="_blank" rel="noopener">HuggingFace Text Generation Inference (TGI) — GitHub</a></li>
-    <li><a href="https://developer.nvidia.com/blog/using-sharp-and-in-network-computing-to-improve-distributed-training-performance/" target="_blank" rel="noopener">SHARP In-Network Computing for Distributed Training (NVIDIA Blog)</a></li>
-    <li><a href="https://pytorch.org/docs/stable/fsdp.html" target="_blank" rel="noopener">PyTorch Fully Sharded Data Parallel (FSDP) Documentation</a></li>
+    <li><a href="https://www.nvidia.com/en-us/data-center/h100/" target="_blank" rel="noopener noreferrer">NVIDIA H100 Tensor Core GPU Architecture Overview (nvidia.com)</a></li>
+    <li><a href="https://www.nvidia.com/en-us/data-center/dgx-h100/" target="_blank" rel="noopener noreferrer">NVIDIA DGX H100 System Datasheet (nvidia.com)</a></li>
+    <li><a href="https://docs.nvidia.com/cuda/index.html" target="_blank" rel="noopener noreferrer">NVIDIA CUDA Documentation (docs.nvidia.com)</a></li>
+    <li><a href="https://github.com/NVIDIA/Megatron-LM" target="_blank" rel="noopener noreferrer">Megatron-LM: Large, Powerful Transformer Language Models — GitHub (NVIDIA)</a></li>
+    <li><a href="https://arxiv.org/abs/2205.05198" target="_blank" rel="noopener noreferrer">Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism (Shoeybi et al., 2019/2022)</a></li>
+    <li><a href="https://arxiv.org/abs/2104.04473" target="_blank" rel="noopener noreferrer">Efficient Large Scale Language Modeling with Mixtures of Experts (Artetxe et al., 2021)</a></li>
+    <li><a href="https://github.com/microsoft/DeepSpeed" target="_blank" rel="noopener noreferrer">DeepSpeed: Extreme-Scale Model Training for Everyone — GitHub (Microsoft)</a></li>
+    <li><a href="https://arxiv.org/abs/1910.02054" target="_blank" rel="noopener noreferrer">ZeRO: Memory Optimizations Toward Training Trillion Parameter Models (Rajbhandari et al., 2020)</a></li>
+    <li><a href="https://github.com/vllm-project/vllm" target="_blank" rel="noopener noreferrer">vLLM: Easy, Fast, and Cheap LLM Serving — GitHub (UC Berkeley)</a></li>
+    <li><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener noreferrer">Efficient Memory Management for Large Language Model Serving with PagedAttention (Kwon et al., 2023)</a></li>
+    <li><a href="https://github.com/NVIDIA/TensorRT-LLM" target="_blank" rel="noopener noreferrer">TensorRT-LLM: Optimised LLM Inference — GitHub (NVIDIA)</a></li>
+    <li><a href="https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/index.html" target="_blank" rel="noopener noreferrer">NVIDIA Triton Inference Server Documentation</a></li>
+    <li><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noopener noreferrer">FlashAttention: Fast and Memory-Efficient Exact Attention (Dao et al., 2022)</a></li>
+    <li><a href="https://arxiv.org/abs/2307.08691" target="_blank" rel="noopener noreferrer">FlashAttention-2: Faster Attention with Better Parallelism (Dao, 2023)</a></li>
+    <li><a href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener noreferrer">SGLang: Fast Serving Framework for LLMs and VLMs — GitHub</a></li>
+    <li><a href="https://developer.nvidia.com/nccl" target="_blank" rel="noopener noreferrer">NCCL: NVIDIA Collective Communications Library (developer.nvidia.com)</a></li>
+    <li><a href="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/" target="_blank" rel="noopener noreferrer">NVIDIA MIG (Multi-Instance GPU) User Guide</a></li>
+    <li><a href="https://arxiv.org/abs/2302.13971" target="_blank" rel="noopener noreferrer">LLaMA: Open and Efficient Foundation Language Models (Touvron et al., 2023)</a></li>
+    <li><a href="https://arxiv.org/abs/2307.09288" target="_blank" rel="noopener noreferrer">Llama 2: Open Foundation and Fine-Tuned Chat Models (Touvron et al., 2023)</a></li>
+    <li><a href="https://mlcommons.org/benchmarks/training/" target="_blank" rel="noopener noreferrer">MLPerf Training Benchmark Results (mlcommons.org)</a></li>
+    <li><a href="https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-unprecedented-trillion-parameter-llm-training-and-inference-performance/" target="_blank" rel="noopener noreferrer">NVIDIA GB200 NVL72 Blog Post — Trillion Parameter LLM Performance</a></li>
+    <li><a href="https://developer.nvidia.com/dcgm" target="_blank" rel="noopener noreferrer">NVIDIA Data Center GPU Manager (DCGM)</a></li>
+    <li><a href="https://github.com/huggingface/text-generation-inference" target="_blank" rel="noopener noreferrer">HuggingFace Text Generation Inference (TGI) — GitHub</a></li>
+    <li><a href="https://developer.nvidia.com/blog/using-sharp-and-in-network-computing-to-improve-distributed-training-performance/" target="_blank" rel="noopener noreferrer">SHARP In-Network Computing for Distributed Training (NVIDIA Blog)</a></li>
+    <li><a href="https://pytorch.org/docs/stable/fsdp.html" target="_blank" rel="noopener noreferrer">PyTorch Fully Sharded Data Parallel (FSDP) Documentation</a></li>
   </ul>
 </section>
 
@@ -1207,7 +1252,7 @@
     Data sourced from public documentation, research papers, and official announcements.<br/>
     Hardware specs and benchmark numbers are approximate; always consult official datasheets for authoritative figures.
   </p>
-  <p style="margin-top:.5rem; color:#555;">nvidia-info &nbsp;|&nbsp; 2025</p>
+  <p style="margin-top:.5rem; color:#555;">nvidia-info &nbsp;|&nbsp; 2025–2026</p>
 </footer>
 
 <!-- ── Chart.js Scripts ── -->
@@ -1289,10 +1334,10 @@ new Chart(document.getElementById('chartMemory'), {
 new Chart(document.getElementById('chartGpuGen'), {
   type: 'line',
   data: {
-    labels: ['V100\n(2017)', 'A100\n(2020)', 'H100\n(2022)', 'H200\n(2024)', 'GB200\n(2025)'],
+    labels: ['V100\n(2017)', 'A100\n(2020)', 'H100\n(2022)', 'H200\n(2024)', 'B200\n(2025)', 'GB200\n(2025)'],
     datasets: [{
       label: 'BF16 TFLOPS',
-      data: [125, 312, 989, 989, 2500],
+      data: [125, 312, 989, 989, 2250, 2500],
       borderColor: '#76b900',
       backgroundColor: 'rgba(118,185,0,.1)',
       fill: true, tension: 0.3, pointRadius: 6, pointBackgroundColor: '#76b900',
