@@ -196,8 +196,59 @@
       border: 1px solid rgba(118,185,0,.3); border-radius: var(--radius);
       padding: 1.5rem; margin: 1.5rem 0;
     }
-    .highlight-box h3 { color: var(--green); margin-bottom: .5rem; }
-    .highlight-box p { color: #bbb; font-size: .9rem; }
+  .highlight-box h3 { color: var(--green); margin-bottom: .5rem; }
+  .highlight-box p { color: #bbb; font-size: .9rem; }
+
+    /* ── developer journey ── */
+    .journey-flow {
+      display: flex; flex-wrap: wrap; gap: .55rem; margin-bottom: 1.5rem;
+    }
+    .flow-pill {
+      background: var(--dark4); border: 1px solid #2e2e2e; border-radius: 999px;
+      padding: .35rem .85rem; font-size: .76rem; color: #cfcfcf;
+    }
+    .journey-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.2rem;
+    }
+    .journey-step {
+      background: var(--dark3); border: 1px solid #2a2a2a; border-radius: var(--radius);
+      padding: 1.35rem; box-shadow: var(--shadow);
+    }
+    .journey-step-header {
+      display: flex; align-items: center; gap: .8rem; margin-bottom: .9rem;
+    }
+    .step-num {
+      width: 2rem; height: 2rem; border-radius: 999px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: rgba(118,185,0,.18); color: var(--green); font-weight: 800; flex-shrink: 0;
+    }
+    .journey-step h3 { font-size: 1rem; color: #f0f0f0; }
+    .journey-step p { color: #b8b8b8; font-size: .84rem; }
+    .journey-meta {
+      margin-top: .8rem; padding: .7rem .85rem; border-left: 3px solid var(--accent);
+      background: rgba(0,200,255,.08); border-radius: 8px; font-size: .78rem; color: #cfefff;
+    }
+    .snippet {
+      margin-top: .95rem; background: #050505; border: 1px solid #202020;
+      border-radius: 10px; overflow-x: auto;
+    }
+    .snippet pre {
+      padding: 1rem; min-width: max-content;
+      font: .76rem/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      color: #d8f6a8;
+    }
+    .snippet .lang {
+      display: block; padding: .5rem .8rem; border-bottom: 1px solid #1c1c1c;
+      font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: #7fd2ff;
+      background: rgba(255,255,255,.02);
+    }
+    .journey-list {
+      list-style: none; display: grid; gap: .45rem; margin-top: .8rem;
+    }
+    .journey-list li {
+      font-size: .79rem; color: #c7c7c7;
+    }
+    .journey-list strong { color: #fff; }
 
     /* ── footer ── */
     footer {
@@ -229,6 +280,7 @@
 <nav>
   <span class="logo">⬛ NVIDIA AI Stack</span>
   <a href="#overview">Overview</a>
+  <a href="#journey">Developer Journey</a>
   <a href="#hardware">Hardware</a>
   <a href="#software">System Software</a>
   <a href="#training">Training</a>
@@ -418,6 +470,248 @@
       <strong>NCCL 2</strong> for collectives and <strong>cuDNN / Flash Attention 3</strong> for kernel execution.
       After training, <strong>TensorRT-LLM</strong> compiles the model for inference, and
       <strong>NVIDIA Triton</strong> (or <strong>vLLM</strong>) serves it behind a load balancer at millions of RPS.
+    </p>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 1B – DEVELOPER JOURNEY
+══════════════════════════════════════════ -->
+<section id="journey">
+  <h2><span class="emoji">🧭</span>Developer Journey — How the Layers Integrate</h2>
+  <p class="section-sub">
+    This is the practical path a developer follows: start by validating the GPU node, write model code in PyTorch,
+    scale it with distributed training, then compile and deploy the resulting model behind a production endpoint.
+  </p>
+
+  <div class="journey-flow">
+    <span class="flow-pill">1. Hardware</span>
+    <span class="flow-pill">2. Network</span>
+    <span class="flow-pill">3. System Software</span>
+    <span class="flow-pill">4. ML Framework</span>
+    <span class="flow-pill">5. Training</span>
+    <span class="flow-pill">6. Inference</span>
+    <span class="flow-pill">7. Orchestration</span>
+  </div>
+
+  <div class="journey-grid">
+    <div class="journey-step">
+      <div class="journey-step-header">
+        <span class="step-num">1</span>
+        <h3>Hardware — confirm the node is usable</h3>
+      </div>
+      <p>Before writing any training or serving code, a developer checks what GPUs are available and whether CUDA can see them.</p>
+      <ul class="journey-list">
+        <li><strong>Touchpoint:</strong> <code>nvidia-smi</code>, CUDA runtime, <code>torch.cuda</code></li>
+        <li><strong>Produces:</strong> a confirmed GPU target for every layer above it</li>
+      </ul>
+      <div class="snippet">
+        <span class="lang">shell + python</span>
+        <pre><code>$ nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
+name, memory.total [MiB], driver_version
+NVIDIA H100 80GB HBM3, 81480 MiB, 550.54.15
+
+import torch
+
+assert torch.cuda.is_available()
+print(torch.cuda.get_device_name(0))
+print(torch.cuda.get_device_properties(0).total_memory // 1024**3, "GB")</code></pre>
+      </div>
+      <div class="journey-meta">Integration: every higher-level tool here ultimately targets the GPU discovered in this step.</div>
+    </div>
+
+    <div class="journey-step">
+      <div class="journey-step-header">
+        <span class="step-num">2</span>
+        <h3>Network — wire GPUs together with NCCL</h3>
+      </div>
+      <p>Once multiple nodes are involved, developers usually interact with the network indirectly through NCCL and <code>torch.distributed</code>.</p>
+      <ul class="journey-list">
+        <li><strong>Touchpoint:</strong> InfiniBand interface selection, rank metadata, process group init</li>
+        <li><strong>Produces:</strong> the communication fabric training and inference runtimes rely on</li>
+      </ul>
+      <div class="snippet">
+        <span class="lang">shell + python</span>
+        <pre><code>export NCCL_SOCKET_IFNAME=ib0
+export NCCL_DEBUG=INFO
+export MASTER_ADDR=10.0.0.10
+export MASTER_PORT=29500
+
+import os
+import torch.distributed as dist
+
+dist.init_process_group(
+    backend="nccl",
+    init_method=f"tcp://{os.environ['MASTER_ADDR']}:{os.environ['MASTER_PORT']}",
+)
+print("world size:", dist.get_world_size())</code></pre>
+      </div>
+      <div class="journey-meta">Integration: NCCL chooses NVLink inside a node and InfiniBand/RoCE across nodes so the model code does not have to.</div>
+    </div>
+
+    <div class="journey-step">
+      <div class="journey-step-header">
+        <span class="step-num">3</span>
+        <h3>System software — call CUDA, cuBLAS, and Flash Attention</h3>
+      </div>
+      <p>Most developers do not call cuBLAS or cuDNN directly; they write tensor code that lowers into those libraries.</p>
+      <ul class="journey-list">
+        <li><strong>Touchpoint:</strong> CUDA tensors, compiled kernels, fused attention ops</li>
+        <li><strong>Produces:</strong> fast GPU kernels reused by the framework and training stack</li>
+      </ul>
+      <div class="snippet">
+        <span class="lang">python</span>
+        <pre><code>import torch
+import torch.nn.functional as F
+
+q = torch.randn(1, 16, 1024, 128, device="cuda", dtype=torch.bfloat16)
+k = torch.randn(1, 16, 1024, 128, device="cuda", dtype=torch.bfloat16)
+v = torch.randn(1, 16, 1024, 128, device="cuda", dtype=torch.bfloat16)
+
+with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
+    out = F.scaled_dot_product_attention(q, k, v)
+
+gemm = torch.compile(lambda a, b: a @ b)
+result = gemm(torch.randn(4096, 4096, device="cuda"), torch.randn(4096, 4096, device="cuda"))</code></pre>
+      </div>
+      <div class="journey-meta">Integration: these tensor ops are where PyTorch hands work down to CUDA, cuBLAS, cuDNN, and Flash Attention.</div>
+    </div>
+
+    <div class="journey-step">
+      <div class="journey-step-header">
+        <span class="step-num">4</span>
+        <h3>ML framework — write the model in PyTorch</h3>
+      </div>
+      <p>The ML framework is the layer most application developers actively author against: modules, losses, optimizers, and dataloaders.</p>
+      <ul class="journey-list">
+        <li><strong>Touchpoint:</strong> <code>nn.Module</code>, autograd, optimizers, token tensors</li>
+        <li><strong>Produces:</strong> a trainable model graph that the distributed runtime can scale out</li>
+      </ul>
+      <div class="snippet">
+        <span class="lang">python</span>
+        <pre><code>import torch
+from torch import nn
+
+class TinyBlock(nn.Module):
+    def __init__(self, hidden=4096):
+        super().__init__()
+        self.attn = nn.MultiheadAttention(hidden, num_heads=32, batch_first=True)
+        self.mlp = nn.Sequential(
+            nn.Linear(hidden, hidden * 4),
+            nn.GELU(),
+            nn.Linear(hidden * 4, hidden),
+        )
+
+    def forward(self, x):
+        x = x + self.attn(x, x, x, need_weights=False)[0]
+        return x + self.mlp(x)
+
+model = TinyBlock().cuda().bfloat16()
+tokens = torch.randn(8, 1024, 4096, device="cuda", dtype=torch.bfloat16)
+loss = model(tokens).float().mean()</code></pre>
+      </div>
+      <div class="journey-meta">Integration: framework code expresses intent; CUDA libraries from Step 3 make it fast; distributed runtimes in Step 5 make it scale.</div>
+    </div>
+
+    <div class="journey-step">
+      <div class="journey-step-header">
+        <span class="step-num">5</span>
+        <h3>Training — scale the toy model to many GPUs</h3>
+      </div>
+      <p>At this point a developer stops thinking about one process and starts thinking about tensor, pipeline, and data parallelism.</p>
+      <ul class="journey-list">
+        <li><strong>Touchpoint:</strong> <code>torchrun</code>, Megatron-LM, DeepSpeed, FSDP config</li>
+        <li><strong>Produces:</strong> checkpoints that can later be exported to an inference engine</li>
+      </ul>
+      <div class="snippet">
+        <span class="lang">shell</span>
+        <pre><code>torchrun \
+  --nproc_per_node=8 \
+  --nnodes=2 \
+  --node_rank=$NODE_RANK \
+  pretrain_gpt.py \
+  --tensor-model-parallel-size 8 \
+  --pipeline-model-parallel-size 2 \
+  --micro-batch-size 2 \
+  --global-batch-size 128 \
+  --bf16 \
+  --use-flash-attn \
+  --distributed-backend nccl \
+  --save /checkpoints/tiny-gpt</code></pre>
+      </div>
+      <div class="journey-meta">Integration: the training launcher consumes the model from Step 4 and the NCCL fabric from Step 2, then emits checkpoints for inference.</div>
+    </div>
+
+    <div class="journey-step">
+      <div class="journey-step-header">
+        <span class="step-num">6</span>
+        <h3>Inference — turn checkpoints into an optimized engine</h3>
+      </div>
+      <p>After training, the artifact changes shape: a research checkpoint becomes a serving artifact optimized for latency, throughput, and memory efficiency.</p>
+      <ul class="journey-list">
+        <li><strong>Touchpoint:</strong> TensorRT-LLM build/export commands or an engine like vLLM</li>
+        <li><strong>Produces:</strong> a runnable model package for a serving framework</li>
+      </ul>
+      <div class="snippet">
+        <span class="lang">shell</span>
+        <pre><code>python convert_checkpoint.py \
+  --input_dir /checkpoints/tiny-gpt \
+  --output_dir /artifacts/tiny-gpt-hf
+
+trtllm-build \
+  --checkpoint_dir /artifacts/tiny-gpt-hf \
+  --output_dir /engines/tiny-gpt-fp8 \
+  --gemm_plugin fp8 \
+  --max_batch_size 32 \
+  --max_input_len 4096 \
+  --max_output_len 1024</code></pre>
+      </div>
+      <div class="journey-meta">Integration: this layer consumes training checkpoints and packages them so Triton, NIM, or another serving tier can load them.</div>
+    </div>
+
+    <div class="journey-step">
+      <div class="journey-step-header">
+        <span class="step-num">7</span>
+        <h3>Orchestration — deploy the serving stack on a cluster</h3>
+      </div>
+      <p>Finally, developers hand the optimized engine to infrastructure tooling so the model becomes a stable service with health checks and autoscaling.</p>
+      <ul class="journey-list">
+        <li><strong>Touchpoint:</strong> Triton model repository, Kubernetes, DCGM exporter, service endpoints</li>
+        <li><strong>Produces:</strong> a production API that callers can hit over HTTP/gRPC</li>
+      </ul>
+      <div class="snippet">
+        <span class="lang">yaml + shell</span>
+        <pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triton-llm
+spec:
+  template:
+    spec:
+      containers:
+        - name: triton
+          image: nvcr.io/nvidia/tritonserver:24.10-py3
+          args: ["tritonserver", "--model-repository=/models"]
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+
+curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generate \
+  -d '{"text_input":"Explain NVLink in one sentence","max_tokens":64}'</code></pre>
+      </div>
+      <div class="journey-meta">Integration: orchestration binds together the inference artifact from Step 6, the GPU nodes from Step 1, and observability such as DCGM and Prometheus.</div>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="margin-top:1.8rem;">
+    <h3>End-to-end mental model</h3>
+    <p>
+      A developer writes <strong>PyTorch code</strong>, which dispatches into <strong>CUDA / cuBLAS / cuDNN</strong> on top of
+      the detected <strong>GPU hardware</strong>. When that model scales beyond one node, <strong>NCCL</strong> uses
+      <strong>NVLink</strong> and <strong>InfiniBand</strong> to move tensors. A distributed trainer such as
+      <strong>Megatron-LM</strong> saves checkpoints, <strong>TensorRT-LLM</strong> converts them into an optimized engine,
+      and <strong>Triton + Kubernetes</strong> turns that engine into a production endpoint.
     </p>
   </div>
 </section>

@@ -10,6 +10,7 @@ Comprehensive interactive guide to NVIDIA's AI infrastructure stack for LLM trai
 - **Inference & Serving** — TensorRT-LLM, vLLM, SGLang, Triton, NVIDIA NIM
 - **Data Center Networking** — NVLink 4/5, InfiniBand NDR, RoCE, SHARP
 - **Orchestration** — Kubernetes, Slurm, DCGM, Ray
+- **Developer Journey** — step-by-step toy snippets showing how the layers connect in practice
 - **Benchmarks** — Performance charts comparing GPUs, inference engines, and parallelism strategies
 
 ## Live Site
