@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nvidia AI Infrastructure Stack – LLM Training &amp; Serving</title>
+  <script src="chart.umd.js"></script>
+  <style>
+    /* ── reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green:  #76b900;
+      --green2: #5a8e00;
+      --dark:   #0a0a0a;
+      --dark2:  #111;
+      --dark3:  #181818;
+      --dark4:  #1e1e1e;
+      --dark5:  #252525;
+      --text:   #e8e8e8;
+      --muted:  #888;
+      --accent: #00c8ff;
+      --yellow: #ffd700;
+      --orange: #ff6b35;
+      --purple: #a855f7;
+      --radius: 12px;
+      --shadow: 0 4px 24px rgba(0,0,0,.6);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--dark);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,10,10,.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #222;
+      display: flex; align-items: center; gap: 1rem;
+      padding: .7rem 2rem; flex-wrap: wrap;
+    }
+    nav .logo { color: var(--green); font-weight: 800; font-size: 1.1rem; letter-spacing: .5px; }
+    nav a {
+      color: var(--muted); text-decoration: none; font-size: .85rem;
+      transition: color .2s;
+    }
+    nav a:hover { color: var(--green); }
+
+    /* ── hero ── */
+    .hero {
+      background: linear-gradient(135deg, #0d1a00 0%, #001a2e 50%, #0a0a0a 100%);
+      text-align: center; padding: 6rem 2rem 4rem;
+    }
+    .hero h1 {
+      font-size: clamp(1.8rem, 5vw, 3.2rem);
+      font-weight: 800; line-height: 1.2;
+      background: linear-gradient(90deg, var(--green), var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p { max-width: 700px; margin: 1.2rem auto; color: #aaa; font-size: 1.05rem; }
+    .hero .tags { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; margin-top: 1.5rem; }
+    .tag {
+      background: rgba(118,185,0,.15); border: 1px solid rgba(118,185,0,.4);
+      color: var(--green); border-radius: 999px; padding: .3rem .9rem; font-size: .78rem;
+    }
+
+    /* ── sections ── */
+    section { padding: 4rem 2rem; max-width: 1200px; margin: 0 auto; }
+    section + section { border-top: 1px solid #1e1e1e; }
+    h2 {
+      font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 700;
+      color: var(--green); margin-bottom: .4rem;
+    }
+    h2 .emoji { margin-right: .5rem; }
+    .section-sub { color: var(--muted); margin-bottom: 2rem; font-size: .95rem; }
+
+    /* ── stack diagram ── */
+    .stack {
+      display: flex; flex-direction: column; gap: .7rem; position: relative;
+    }
+    .stack-row {
+      border-radius: var(--radius);
+      padding: 1rem 1.5rem;
+      display: flex; align-items: flex-start; gap: 1rem;
+      position: relative; overflow: hidden;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .stack-row:hover { transform: translateX(6px); box-shadow: var(--shadow); }
+    .stack-row .layer-label {
+      writing-mode: vertical-rl; text-orientation: mixed;
+      transform: rotate(180deg); font-size: .7rem; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase; opacity: .7;
+      min-width: 18px;
+    }
+    .stack-row .layer-content { flex: 1; }
+    .stack-row h3 { font-size: 1rem; font-weight: 700; margin-bottom: .3rem; }
+    .stack-row p { font-size: .85rem; color: #bbb; }
+
+    /* layer colors */
+    .layer-hw    { background: linear-gradient(135deg,#1a2600,#0a1600); border-left: 4px solid var(--green); }
+    .layer-net   { background: linear-gradient(135deg,#001a1a,#001010); border-left: 4px solid var(--accent); }
+    .layer-sys   { background: linear-gradient(135deg,#1a1000,#100800); border-left: 4px solid var(--yellow); }
+    .layer-fw    { background: linear-gradient(135deg,#1a001a,#120012); border-left: 4px solid var(--purple); }
+    .layer-train { background: linear-gradient(135deg,#1a0800,#100500); border-left: 4px solid var(--orange); }
+    .layer-infer { background: linear-gradient(135deg,#001a10,#000e08); border-left: 4px solid #00e099; }
+    .layer-orch  { background: linear-gradient(135deg,#1a1a00,#0e0e00); border-left: 4px solid #e6e600; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+    .chip {
+      background: rgba(255,255,255,.07); border-radius: 6px;
+      padding: .2rem .65rem; font-size: .78rem; color: #ddd;
+      border: 1px solid rgba(255,255,255,.1);
+    }
+    .chip.hl { background: rgba(118,185,0,.18); border-color: rgba(118,185,0,.4); color: var(--green); }
+    .chip.hl-b { background: rgba(0,200,255,.12); border-color: rgba(0,200,255,.35); color: var(--accent); }
+    .chip.hl-p { background: rgba(168,85,247,.15); border-color: rgba(168,85,247,.4); color: #c084fc; }
+    .chip.hl-o { background: rgba(255,107,53,.15); border-color: rgba(255,107,53,.4); color: #ff9a7a; }
+
+    /* ── cards grid ── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.2rem; }
+    .card {
+      background: var(--dark3); border-radius: var(--radius);
+      border: 1px solid #2a2a2a; padding: 1.4rem;
+      transition: border-color .2s, transform .2s;
+    }
+    .card:hover { border-color: var(--green); transform: translateY(-3px); }
+    .card-icon { font-size: 2rem; margin-bottom: .7rem; }
+    .card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .4rem; }
+    .card p { font-size: .83rem; color: #aaa; }
+    .card .badge {
+      display: inline-block; margin-top: .6rem;
+      background: rgba(118,185,0,.15); border: 1px solid rgba(118,185,0,.3);
+      color: var(--green); border-radius: 999px; padding: .15rem .7rem; font-size: .72rem;
+    }
+
+    /* ── chart containers ── */
+    .chart-wrap {
+      background: var(--dark3); border-radius: var(--radius);
+      border: 1px solid #222; padding: 1.4rem;
+    }
+    .chart-title { font-size: .95rem; font-weight: 600; margin-bottom: 1rem; color: #ccc; }
+    .charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.2rem; }
+
+    /* ── topology diagram ── */
+    .topo-wrap {
+      background: var(--dark3); border-radius: var(--radius);
+      border: 1px solid #222; padding: 1.5rem; overflow-x: auto;
+    }
+    .topo-wrap svg text { font-family: 'Segoe UI', sans-serif; }
+
+    /* ── comparison table ── */
+    table {
+      width: 100%; border-collapse: collapse; font-size: .85rem;
+      background: var(--dark3); border-radius: var(--radius); overflow: hidden;
+    }
+    th {
+      background: rgba(118,185,0,.2); color: var(--green);
+      padding: .75rem 1rem; text-align: left; font-size: .8rem; letter-spacing: .5px;
+    }
+    td { padding: .7rem 1rem; border-bottom: 1px solid #222; color: #ddd; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.03); }
+    .good { color: #76b900; }
+    .med  { color: #ffd700; }
+    .low  { color: #ff6b35; }
+
+    /* ── reference list ── */
+    .refs { list-style: none; }
+    .refs li {
+      padding: .6rem 0; border-bottom: 1px solid #1e1e1e;
+      display: flex; gap: .7rem; font-size: .85rem;
+    }
+    .refs li::before {
+      content: '→'; color: var(--green); flex-shrink: 0; font-weight: 700;
+    }
+    .refs a { color: var(--accent); text-decoration: none; }
+    .refs a:hover { text-decoration: underline; }
+
+    /* ── flow diagram ── */
+    .flow { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    .flow-box {
+      background: var(--dark4); border: 1px solid #333; border-radius: 8px;
+      padding: .6rem 1rem; font-size: .82rem; font-weight: 600;
+      transition: background .2s;
+    }
+    .flow-box:hover { background: #222; }
+    .flow-arrow { color: var(--muted); font-size: 1.2rem; }
+
+    /* ── highlight box ── */
+    .highlight-box {
+      background: linear-gradient(135deg, rgba(118,185,0,.1), rgba(0,200,255,.1));
+      border: 1px solid rgba(118,185,0,.3); border-radius: var(--radius);
+      padding: 1.5rem; margin: 1.5rem 0;
+    }
+    .highlight-box h3 { color: var(--green); margin-bottom: .5rem; }
+    .highlight-box p { color: #bbb; font-size: .9rem; }
+
+    /* ── footer ── */
+    footer {
+      background: var(--dark2); border-top: 1px solid #222;
+      text-align: center; padding: 2rem;
+      color: var(--muted); font-size: .83rem;
+    }
+
+    /* ── responsiveness ── */
+    @media (max-width: 600px) {
+      .stack-row .layer-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation ── -->
+<nav>
+  <span class="logo">⬛ NVIDIA AI Stack</span>
+  <a href="#overview">Overview</a>
+  <a href="#hardware">Hardware</a>
+  <a href="#software">System Software</a>
+  <a href="#training">Training</a>
+  <a href="#inference">Inference</a>
+  <a href="#datacenter">Data Center</a>
+  <a href="#benchmarks">Benchmarks</a>
+  <a href="#references">References</a>
+</nav>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <h1>Nvidia AI Infrastructure Stack</h1>
+  <h1 style="font-size:clamp(1.2rem,3vw,1.8rem); margin-top:.5rem;">for LLM Training &amp; Large-Scale API Serving</h1>
+  <p>
+    A comprehensive guide to every layer of the technology stack used by leading AI labs
+    (OpenAI, Anthropic, Google DeepMind, Meta AI) to train and serve state-of-the-art
+    large language models at data-center scale.
+  </p>
+  <div class="tags">
+    <span class="tag">H100 / H200 / GB200</span>
+    <span class="tag">CUDA 12</span>
+    <span class="tag">PyTorch 2</span>
+    <span class="tag">Megatron-LM</span>
+    <span class="tag">TensorRT-LLM</span>
+    <span class="tag">Triton Inference Server</span>
+    <span class="tag">vLLM</span>
+    <span class="tag">NVLink / InfiniBand</span>
+    <span class="tag">Kubernetes / Slurm</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECTION 1 – FULL STACK OVERVIEW
+══════════════════════════════════════════ -->
+<section id="overview">
+  <h2><span class="emoji">🗂️</span>Full Technology Stack – Layer by Layer</h2>
+  <p class="section-sub">
+    Each abstraction layer builds on the one below. Click a layer to learn more in the sections that follow.
+  </p>
+
+  <div class="stack">
+
+    <!-- Orchestration -->
+    <div class="stack-row layer-orch">
+      <span class="layer-label" style="color:#e6e600">Orchestration</span>
+      <div class="layer-content">
+        <h3>🎛️ Orchestration &amp; Cluster Management</h3>
+        <p>Schedules jobs, provisions GPUs, manages health checks and autoscaling for both training and inference workloads.</p>
+        <div class="chips">
+          <span class="chip">Kubernetes (K8s)</span>
+          <span class="chip">Slurm</span>
+          <span class="chip">NVIDIA Base Command Platform</span>
+          <span class="chip">Ray</span>
+          <span class="chip">DCGM</span>
+          <span class="chip">Prometheus / Grafana</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inference serving -->
+    <div class="stack-row layer-infer">
+      <span class="layer-label" style="color:#00e099">Inference</span>
+      <div class="layer-content">
+        <h3>⚡ Inference &amp; API Serving</h3>
+        <p>Optimizes and serves LLMs at scale with batching, KV-cache management, quantization, and multi-node deployment.</p>
+        <div class="chips">
+          <span class="chip hl">TensorRT-LLM</span>
+          <span class="chip hl">NVIDIA Triton Inference Server</span>
+          <span class="chip">vLLM</span>
+          <span class="chip">TGI (HuggingFace)</span>
+          <span class="chip">SGLang</span>
+          <span class="chip">LMDeploy</span>
+          <span class="chip">NVIDIA NIM</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Training frameworks -->
+    <div class="stack-row layer-train">
+      <span class="layer-label" style="color:#ff6b35">Training</span>
+      <div class="layer-content">
+        <h3>🔬 Distributed Training Frameworks</h3>
+        <p>Handles tensor/pipeline/data parallelism, gradient checkpointing, mixed-precision, and large-scale distributed optimization.</p>
+        <div class="chips">
+          <span class="chip hl-o">Megatron-LM (NVIDIA)</span>
+          <span class="chip hl-o">NeMo Framework (NVIDIA)</span>
+          <span class="chip">DeepSpeed (Microsoft)</span>
+          <span class="chip">FSDP (PyTorch)</span>
+          <span class="chip">JAX + XLA (Google)</span>
+          <span class="chip">Alpa</span>
+          <span class="chip">ColossalAI</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ML Frameworks -->
+    <div class="stack-row layer-fw">
+      <span class="layer-label" style="color:#a855f7">ML Framework</span>
+      <div class="layer-content">
+        <h3>🧪 ML Frameworks &amp; Compilers</h3>
+        <p>High-level deep learning APIs with auto-differentiation, compilation, and GPU kernel dispatch.</p>
+        <div class="chips">
+          <span class="chip hl-p">PyTorch 2 (torch.compile)</span>
+          <span class="chip hl-p">JAX / Flax</span>
+          <span class="chip">TensorFlow 2</span>
+          <span class="chip">Triton (OpenAI kernel lang)</span>
+          <span class="chip">ONNX Runtime</span>
+          <span class="chip">TorchScript</span>
+          <span class="chip">XLA</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Software -->
+    <div class="stack-row layer-sys">
+      <span class="layer-label" style="color:#ffd700">System SW</span>
+      <div class="layer-content">
+        <h3>🔧 System Software &amp; GPU Libraries</h3>
+        <p>NVIDIA's GPU-accelerated math, communication, and runtime libraries — the foundation every framework builds on.</p>
+        <div class="chips">
+          <span class="chip hl">CUDA 12</span>
+          <span class="chip hl">cuDNN 9</span>
+          <span class="chip hl">cuBLAS / cuBLASLt</span>
+          <span class="chip hl">NCCL 2</span>
+          <span class="chip">cuSPARSE</span>
+          <span class="chip">Thrust</span>
+          <span class="chip">NVTX</span>
+          <span class="chip">NVSHMEM</span>
+          <span class="chip">NVIDIA Nsight</span>
+          <span class="chip">Flash Attention 2/3</span>
+          <span class="chip">FasterTransformer</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Networking -->
+    <div class="stack-row layer-net">
+      <span class="layer-label" style="color:#00c8ff">Network</span>
+      <div class="layer-content">
+        <h3>🌐 High-Speed Interconnects &amp; Networking</h3>
+        <p>GPU-to-GPU communication fabric enabling ultra-low-latency collective operations for model parallelism at scale.</p>
+        <div class="chips">
+          <span class="chip hl-b">NVLink 4 (900 GB/s)</span>
+          <span class="chip hl-b">NVSwitch 3 (13.6 TB/s)</span>
+          <span class="chip hl-b">InfiniBand NDR 400G</span>
+          <span class="chip hl-b">NVIDIA Quantum-2 IB Switch</span>
+          <span class="chip">GPUDirect RDMA</span>
+          <span class="chip">GDRCopy</span>
+          <span class="chip">400G RoCE v2</span>
+          <span class="chip">SHARP (in-network reduction)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hardware -->
+    <div class="stack-row layer-hw">
+      <span class="layer-label" style="color:#76b900">Hardware</span>
+      <div class="layer-content">
+        <h3>🖥️ GPU Hardware &amp; Systems</h3>
+        <p>NVIDIA's latest datacenter GPUs and integrated multi-GPU systems purpose-built for AI training and inference.</p>
+        <div class="chips">
+          <span class="chip hl">H100 SXM5 (80GB HBM3)</span>
+          <span class="chip hl">H200 SXM (141GB HBM3e)</span>
+          <span class="chip hl">GB200 NVL72 (Blackwell)</span>
+          <span class="chip hl">DGX H100 (8× H100)</span>
+          <span class="chip hl">DGX SuperPOD</span>
+          <span class="chip">A100 SXM4 (80GB)</span>
+          <span class="chip">L40S (48GB GDDR6)</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end .stack -->
+
+  <div class="highlight-box" style="margin-top:2rem;">
+    <h3>💡 How It All Fits Together</h3>
+    <p>
+      A model training run starts with <strong>Slurm / Kubernetes</strong> scheduling jobs across hundreds of
+      <strong>DGX H100</strong> nodes. Inside each node, 8× H100s communicate at 900 GB/s via
+      <strong>NVLink 4</strong>. Across nodes, <strong>InfiniBand NDR 400G</strong> with
+      <strong>SHARP in-network reduction</strong> handles all-reduce collective ops. The training framework
+      (<strong>Megatron-LM + DeepSpeed</strong>) sits atop <strong>PyTorch 2</strong>, using
+      <strong>NCCL 2</strong> for collectives and <strong>cuDNN / Flash Attention 3</strong> for kernel execution.
+      After training, <strong>TensorRT-LLM</strong> compiles the model for inference, and
+      <strong>NVIDIA Triton</strong> (or <strong>vLLM</strong>) serves it behind a load balancer at millions of RPS.
+    </p>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 2 – HARDWARE
+══════════════════════════════════════════ -->
+<section id="hardware">
+  <h2><span class="emoji">🖥️</span>Hardware Layer</h2>
+  <p class="section-sub">
+    NVIDIA's H100, H200 and the new Blackwell GB200 are the backbone of every leading AI lab's infrastructure.
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">��</div>
+      <h3>H100 SXM5</h3>
+      <p>
+        80 GB HBM3, 3.35 TB/s memory bandwidth, 989 TFLOPS BF16 Tensor Core,
+        700W TDP. Used in DGX H100 (8× per node). Industry standard for GPT-4-class training.
+      </p>
+      <span class="badge">Hopper Architecture</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔵</div>
+      <h3>H200 SXM</h3>
+      <p>
+        141 GB HBM3e, 4.8 TB/s memory bandwidth — 1.8× the capacity of H100.
+        Critical for fitting larger models in memory without offloading.
+      </p>
+      <span class="badge">Hopper Architecture</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚫</div>
+      <h3>GB200 NVL72 (Blackwell)</h3>
+      <p>
+        72 GPUs + 36 Grace CPUs in one NVL rack, 1.4 ExaFLOPS FP4 inference,
+        130 TB/s NVLink bandwidth. 30× inference speedup for LLM serving vs H100.
+      </p>
+      <span class="badge">Blackwell Architecture</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">📦</div>
+      <h3>DGX H100 System</h3>
+      <p>
+        8× H100 SXM5 GPUs connected via NVLink 4 / NVSwitch 3,
+        640 GB total HBM3, 2× InfiniBand HDR ports, 10 TB NVMe storage. 
+        The standard building block for AI training clusters.
+      </p>
+      <span class="badge">Building Block</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🏗️</div>
+      <h3>DGX SuperPOD</h3>
+      <p>
+        32× DGX H100 nodes = 256 H100 GPUs, 640 TB NVMe, 8× InfiniBand
+        NDR400 leaf switches. Full cluster fabric in one pod.
+      </p>
+      <span class="badge">Cluster Scale</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🟡</div>
+      <h3>L40S (Inference)</h3>
+      <p>
+        48 GB GDDR6, 362 TFLOPS FP8, PCIe form factor for inference-optimized
+        racks. More cost-efficient than H100 for inference workloads at smaller scale.
+      </p>
+      <span class="badge">Ada Lovelace</span>
+    </div>
+  </div>
+
+  <h3 style="margin: 2rem 0 1rem; font-size:1.1rem; color:#ddd;">GPU Specification Comparison</h3>
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>GPU</th><th>Architecture</th><th>Memory</th><th>Mem BW</th>
+        <th>BF16 TFLOPS</th><th>FP8 TFLOPS</th><th>TDP</th><th>Use case</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>H100 SXM5</strong></td><td>Hopper</td>
+        <td class="good">80 GB HBM3</td><td class="good">3.35 TB/s</td>
+        <td class="good">989</td><td class="good">1,979</td>
+        <td>700W</td><td>Training + Inference</td>
+      </tr>
+      <tr>
+        <td><strong>H200 SXM</strong></td><td>Hopper</td>
+        <td class="good">141 GB HBM3e</td><td class="good">4.8 TB/s</td>
+        <td class="good">989</td><td class="good">1,979</td>
+        <td>700W</td><td>Large-model Inference</td>
+      </tr>
+      <tr>
+        <td><strong>GB200 NVL72</strong></td><td>Blackwell</td>
+        <td class="good">192 GB × 72</td><td class="good">8.0 TB/s</td>
+        <td class="good">2,500+</td><td class="good">5,000+</td>
+        <td>1,200W</td><td>Next-gen Training/Inference</td>
+      </tr>
+      <tr>
+        <td><strong>A100 SXM4</strong></td><td>Ampere</td>
+        <td class="med">80 GB HBM2e</td><td class="med">2.0 TB/s</td>
+        <td class="med">312</td><td>N/A</td>
+        <td>400W</td><td>Training (previous gen)</td>
+      </tr>
+      <tr>
+        <td><strong>L40S</strong></td><td>Ada Lovelace</td>
+        <td class="med">48 GB GDDR6</td><td class="low">864 GB/s</td>
+        <td class="med">362</td><td class="med">724</td>
+        <td>350W</td><td>Inference (PCIe)</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 3 – SYSTEM SOFTWARE
+══════════════════════════════════════════ -->
+<section id="software">
+  <h2><span class="emoji">🔧</span>System Software &amp; GPU Libraries</h2>
+  <p class="section-sub">
+    NVIDIA's SDK ecosystem provides the foundational primitives. Every ML framework ultimately calls into these libraries.
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">⚙️</div>
+      <h3>CUDA 12</h3>
+      <p>
+        Parallel compute platform and API. CUDA Graphs, cooperative groups, 
+        warp-level primitives. Enables custom kernels in C++, Python, and the 
+        OpenAI Triton language.
+      </p>
+      <span class="badge">NVIDIA Core</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🧠</div>
+      <h3>cuDNN 9</h3>
+      <p>
+        GPU-accelerated deep neural network library. Flash Attention 3 kernels,
+        fused multi-head attention, convolutions, normalization, activation fused ops.
+      </p>
+      <span class="badge">NVIDIA Core</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">➕</div>
+      <h3>cuBLAS / cuBLASLt</h3>
+      <p>
+        Highly-tuned GEMM routines. cuBLASLt adds flexible matrix multiply layouts
+        critical for Transformer's QKV projections and MLP layers.
+      </p>
+      <span class="badge">NVIDIA Core</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔗</div>
+      <h3>NCCL 2</h3>
+      <p>
+        Collective communications library — AllReduce, AllGather, ReduceScatter,
+        Broadcast. Auto-selects NVLink vs InfiniBand vs RoCE. Critical for
+        distributed training.
+      </p>
+      <span class="badge">NVIDIA Core</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h3>Flash Attention 2 / 3</h3>
+      <p>
+        IO-aware exact attention algorithm (Dao et al.). 2–4× speedup and
+        O(n) memory vs standard attention. Flash Attention 3 targets H100's
+        Tensor Memory Accelerator (TMA).
+      </p>
+      <span class="badge">Open Source</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔍</div>
+      <h3>NVIDIA Nsight</h3>
+      <p>
+        GPU profiling tools: Nsight Systems (system-level timeline), Nsight Compute
+        (kernel-level roofline). Essential for identifying compute vs memory bottlenecks.
+      </p>
+      <span class="badge">Profiling</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">📡</div>
+      <h3>GPUDirect RDMA</h3>
+      <p>
+        Allows InfiniBand/RoCE NICs to DMA directly to/from GPU memory, 
+        bypassing CPU and system RAM. Critical for multi-node all-reduce latency.
+      </p>
+      <span class="badge">Networking</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🧩</div>
+      <h3>NVSHMEM</h3>
+      <p>
+        OpenSHMEM-based symmetric memory interface for GPU clusters.
+        Enables fine-grained GPU-initiated communication — used in 
+        advanced pipeline parallelism.
+      </p>
+      <span class="badge">Advanced</span>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 4 – TRAINING
+══════════════════════════════════════════ -->
+<section id="training">
+  <h2><span class="emoji">🔬</span>Distributed Training Stack</h2>
+  <p class="section-sub">
+    Training a 70B+ parameter LLM requires 3D parallelism across hundreds to thousands of GPUs.
+    These frameworks manage that complexity.
+  </p>
+
+  <div class="highlight-box">
+    <h3>3D Parallelism Explained</h3>
+    <p>
+      <strong>Data Parallelism (DP):</strong> Replicate model; each replica processes a different mini-batch. Gradients all-reduced across replicas.<br><br>
+      <strong>Tensor Parallelism (TP):</strong> Split individual layers (e.g., QKV attention, MLP) across GPUs. Requires all-reduce each layer.<br><br>
+      <strong>Pipeline Parallelism (PP):</strong> Partition sequential model layers across GPUs. Microbatches overlap compute and communication.<br><br>
+      <strong>Example — GPT-3 175B:</strong> TP=8 (within DGX node via NVLink), PP=16 (across nodes via IB), DP=2048 (data parallelism)
+    </p>
+  </div>
+
+  <div class="cards" style="margin-top:1.5rem">
+    <div class="card">
+      <div class="card-icon">🚀</div>
+      <h3>Megatron-LM (NVIDIA)</h3>
+      <p>
+        NVIDIA Research's flagship distributed training framework. First to demonstrate
+        tensor and pipeline parallelism at scale. Used for Megatron, Nemotron, and
+        most production LLMs at NVIDIA customers.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎯</div>
+      <h3>NeMo Framework</h3>
+      <p>
+        NVIDIA's end-to-end LLM platform: data processing → training (wraps Megatron-LM)
+        → RLHF / SFT → evaluation → export to TensorRT-LLM. Supports GPT, LLaMA, Falcon.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚔️</div>
+      <h3>DeepSpeed (Microsoft)</h3>
+      <p>
+        ZeRO optimizer stages 1–3 partition optimizer state, gradients, and parameters
+        across DP ranks, enabling trillion-parameter models. Combines with Megatron-LM
+        (Megatron-DeepSpeed).
+      </p>
+      <span class="badge">Open Source</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌊</div>
+      <h3>PyTorch FSDP</h3>
+      <p>
+        Fully Sharded Data Parallel in native PyTorch 2. Equivalent to ZeRO-3.
+        Integrates with torch.compile for kernel fusion. Used by Meta for LLaMA training.
+      </p>
+      <span class="badge">Open Source</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔮</div>
+      <h3>JAX + XLA (Google)</h3>
+      <p>
+        Google's ML framework with pmap/jit for SPMD parallelism. Used by 
+        Google DeepMind (Gemini) on TPUs, but also runs on H100s. XLA compiles
+        to highly efficient GPU code.
+      </p>
+      <span class="badge">Google</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🏋️</div>
+      <h3>PyTorch 2 + torch.compile</h3>
+      <p>
+        PyTorch 2 adds dynamo + inductor compiler backend.
+        torch.compile generates Triton kernels or calls cuDNN/cuBLAS fused ops.
+        30–50% throughput improvement on transformer training.
+      </p>
+      <span class="badge">Meta / Community</span>
+    </div>
+  </div>
+
+  <!-- Training flow diagram -->
+  <h3 style="margin: 2rem 0 1rem; font-size:1.1rem; color:#ddd;">Typical LLM Training Pipeline</h3>
+  <div class="flow">
+    <div class="flow-box" style="border-color:#76b900">📚 Raw Data<br/><small style="color:#888">Web/books/code</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:#ffd700">🔤 Tokenization<br/><small style="color:#888">BPE / SentencePiece</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:#ff6b35">💾 Data Pipeline<br/><small style="color:#888">MDS / WebDataset</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:#a855f7">🔬 Distributed Training<br/><small style="color:#888">Megatron + DeepSpeed</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:#00c8ff">💬 SFT / RLHF<br/><small style="color:#888">NeMo / TRL</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:#00e099">📊 Eval<br/><small style="color:#888">lm-evaluation-harness</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:#76b900">🚀 Export<br/><small style="color:#888">TensorRT-LLM / HF</small></div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 5 – INFERENCE
+══════════════════════════════════════════ -->
+<section id="inference">
+  <h2><span class="emoji">⚡</span>Inference &amp; API Serving Stack</h2>
+  <p class="section-sub">
+    Serving a 70B model at millions of requests per day requires continuous batching,
+    KV-cache optimisation, quantization, and multi-node tensor parallelism.
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">🏎️</div>
+      <h3>TensorRT-LLM (NVIDIA)</h3>
+      <p>
+        NVIDIA's LLM inference SDK. In-flight batching, paged KV cache, FP8/INT4 quantization,
+        speculative decoding, tensor and pipeline parallelism. 4–8× vs PyTorch baseline.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎛️</div>
+      <h3>NVIDIA Triton Inference Server</h3>
+      <p>
+        Production-grade model serving framework. Supports TensorRT-LLM, PyTorch, ONNX backends.
+        Dynamic batching, multi-model serving, health probes, gRPC + HTTP API.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h3>vLLM</h3>
+      <p>
+        UC Berkeley project. Introduced PagedAttention for efficient KV-cache management —
+        up to 24× more throughput than HuggingFace Transformers.
+        OpenAI-compatible API, most popular OSS inference engine.
+      </p>
+      <span class="badge">Open Source</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🤗</div>
+      <h3>TGI (HuggingFace)</h3>
+      <p>
+        Text Generation Inference. Continuous batching, tensor parallelism,
+        AWQ/GPTQ/bitsandbytes quantization. Powers HuggingFace Inference Endpoints.
+      </p>
+      <span class="badge">Open Source</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌐</div>
+      <h3>SGLang</h3>
+      <p>
+        Stanford / LMSYS project. RadixAttention for efficient prefix KV cache sharing,
+        continuous batching, multi-modal. Fastest for long-context and batch inference scenarios.
+      </p>
+      <span class="badge">Open Source</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎁</div>
+      <h3>NVIDIA NIM</h3>
+      <p>
+        Pre-packaged, cloud-ready inference microservices. Docker containers with
+        TensorRT-LLM + Triton pre-configured for specific models (LLaMA-3, Mistral, etc.).
+        Deploy in minutes on any NVIDIA-certified cloud.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+  </div>
+
+  <!-- Inference techniques -->
+  <h3 style="margin: 2rem 0 1rem; font-size:1.1rem; color:#ddd;">Key Inference Optimisation Techniques</h3>
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Technique</th><th>What it does</th><th>Speedup</th><th>Framework support</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Continuous Batching</strong></td><td>Adds new requests to running batch (vs static batching)</td><td class="good">5–20×</td><td>vLLM, TGI, TRT-LLM</td></tr>
+      <tr><td><strong>PagedAttention</strong></td><td>KV-cache paging like OS virtual memory — eliminates waste</td><td class="good">24× vs HF</td><td>vLLM, SGLang</td></tr>
+      <tr><td><strong>FP8 Quantization</strong></td><td>Halves memory vs FP16 with near-lossless quality</td><td class="good">1.8×</td><td>TensorRT-LLM, vLLM</td></tr>
+      <tr><td><strong>INT4/AWQ/GPTQ</strong></td><td>4-bit weights, 4× memory reduction</td><td class="med">2–3×</td><td>vLLM, TGI, TRT-LLM</td></tr>
+      <tr><td><strong>Speculative Decoding</strong></td><td>Draft model proposes tokens; main model verifies in parallel</td><td class="med">2–3×</td><td>TRT-LLM, vLLM</td></tr>
+      <tr><td><strong>Tensor Parallelism</strong></td><td>Splits model layers across multiple GPUs</td><td class="good">N× with N GPUs</td><td>All major engines</td></tr>
+      <tr><td><strong>Flash Attention 3</strong></td><td>IO-aware exact attention, TMA + WGMMA on H100</td><td class="good">2.6× vs FA2</td><td>cuDNN / manual</td></tr>
+      <tr><td><strong>Prefix Caching</strong></td><td>Reuse KV cache for repeated system prompts</td><td class="good">High for chatbots</td><td>vLLM, SGLang</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 6 – DATA CENTER
+══════════════════════════════════════════ -->
+<section id="datacenter">
+  <h2><span class="emoji">🏭</span>Data Center Scale Architecture</h2>
+  <p class="section-sub">
+    Scaling to thousands of GPUs requires a carefully designed fat-tree network topology
+    with InfiniBand or RoCE at every layer.
+  </p>
+
+  <!-- SVG network topology diagram -->
+  <div class="topo-wrap">
+    <svg viewBox="0 0 900 480" width="100%" xmlns="http://www.w3.org/2000/svg" style="max-height:520px">
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <path d="M0,0 L0,8 L8,4 Z" fill="#444"/>
+        </marker>
+      </defs>
+
+      <!-- Background labels -->
+      <text x="450" y="24" text-anchor="middle" font-size="15" font-weight="bold" fill="#76b900">Data Center Scale AI Network Topology</text>
+
+      <!-- Spine switches (top) -->
+      <rect x="50"  y="50" width="110" height="38" rx="7" fill="#1a2600" stroke="#76b900" stroke-width="1.5"/>
+      <text x="105" y="73" text-anchor="middle" font-size="11" fill="#76b900">IB NDR Spine 1</text>
+      <rect x="200" y="50" width="110" height="38" rx="7" fill="#1a2600" stroke="#76b900" stroke-width="1.5"/>
+      <text x="255" y="73" text-anchor="middle" font-size="11" fill="#76b900">IB NDR Spine 2</text>
+      <rect x="350" y="50" width="110" height="38" rx="7" fill="#1a2600" stroke="#76b900" stroke-width="1.5"/>
+      <text x="405" y="73" text-anchor="middle" font-size="11" fill="#76b900">IB NDR Spine 3</text>
+      <rect x="500" y="50" width="110" height="38" rx="7" fill="#1a2600" stroke="#76b900" stroke-width="1.5"/>
+      <text x="555" y="73" text-anchor="middle" font-size="11" fill="#76b900">IB NDR Spine 4</text>
+      <rect x="650" y="50" width="110" height="38" rx="7" fill="#1a2600" stroke="#76b900" stroke-width="1.5"/>
+      <text x="705" y="73" text-anchor="middle" font-size="11" fill="#76b900">IB NDR Spine 5</text>
+
+      <!-- Leaf switches -->
+      <rect x="75"  y="165" width="100" height="38" rx="7" fill="#001a1a" stroke="#00c8ff" stroke-width="1.5"/>
+      <text x="125" y="188" text-anchor="middle" font-size="11" fill="#00c8ff">Leaf SW A</text>
+      <rect x="250" y="165" width="100" height="38" rx="7" fill="#001a1a" stroke="#00c8ff" stroke-width="1.5"/>
+      <text x="300" y="188" text-anchor="middle" font-size="11" fill="#00c8ff">Leaf SW B</text>
+      <rect x="425" y="165" width="100" height="38" rx="7" fill="#001a1a" stroke="#00c8ff" stroke-width="1.5"/>
+      <text x="475" y="188" text-anchor="middle" font-size="11" fill="#00c8ff">Leaf SW C</text>
+      <rect x="600" y="165" width="100" height="38" rx="7" fill="#001a1a" stroke="#00c8ff" stroke-width="1.5"/>
+      <text x="650" y="188" text-anchor="middle" font-size="11" fill="#00c8ff">Leaf SW D</text>
+
+      <!-- Spine-to-leaf connections (selected) -->
+      <line x1="105" y1="88"  x2="125" y2="165" stroke="#76b900" stroke-width="1" stroke-opacity=".5"/>
+      <line x1="255" y1="88"  x2="125" y2="165" stroke="#76b900" stroke-width="1" stroke-opacity=".5"/>
+      <line x1="405" y1="88"  x2="300" y2="165" stroke="#76b900" stroke-width="1" stroke-opacity=".5"/>
+      <line x1="555" y1="88"  x2="475" y2="165" stroke="#76b900" stroke-width="1" stroke-opacity=".5"/>
+      <line x1="705" y1="88"  x2="650" y2="165" stroke="#76b900" stroke-width="1" stroke-opacity=".5"/>
+      <line x1="105" y1="88"  x2="300" y2="165" stroke="#76b900" stroke-width="1" stroke-opacity=".3"/>
+      <line x1="405" y1="88"  x2="475" y2="165" stroke="#76b900" stroke-width="1" stroke-opacity=".3"/>
+      <line x1="555" y1="88"  x2="650" y2="165" stroke="#76b900" stroke-width="1" stroke-opacity=".3"/>
+
+      <!-- DGX nodes -->
+      <!-- Under Leaf A -->
+      <rect x="30"  y="270" width="88" height="52" rx="6" fill="#1a1000" stroke="#ffd700" stroke-width="1.5"/>
+      <text x="74"  y="290" text-anchor="middle" font-size="9.5" fill="#ffd700">DGX H100 #1</text>
+      <text x="74"  y="306" text-anchor="middle" font-size="8.5" fill="#888">8× H100 SXM5</text>
+      <text x="74"  y="318" text-anchor="middle" font-size="8.5" fill="#888">NVLink 900GB/s</text>
+      <rect x="130" y="270" width="88" height="52" rx="6" fill="#1a1000" stroke="#ffd700" stroke-width="1.5"/>
+      <text x="174" y="290" text-anchor="middle" font-size="9.5" fill="#ffd700">DGX H100 #2</text>
+      <text x="174" y="306" text-anchor="middle" font-size="8.5" fill="#888">8× H100 SXM5</text>
+      <text x="174" y="318" text-anchor="middle" font-size="8.5" fill="#888">NVLink 900GB/s</text>
+
+      <!-- Under Leaf B -->
+      <rect x="205" y="270" width="88" height="52" rx="6" fill="#1a1000" stroke="#ffd700" stroke-width="1.5"/>
+      <text x="249" y="290" text-anchor="middle" font-size="9.5" fill="#ffd700">DGX H100 #3</text>
+      <text x="249" y="306" text-anchor="middle" font-size="8.5" fill="#888">8× H100 SXM5</text>
+      <text x="249" y="318" text-anchor="middle" font-size="8.5" fill="#888">NVLink 900GB/s</text>
+      <rect x="305" y="270" width="88" height="52" rx="6" fill="#1a1000" stroke="#ffd700" stroke-width="1.5"/>
+      <text x="349" y="290" text-anchor="middle" font-size="9.5" fill="#ffd700">DGX H100 #4</text>
+      <text x="349" y="306" text-anchor="middle" font-size="8.5" fill="#888">8× H100 SXM5</text>
+      <text x="349" y="318" text-anchor="middle" font-size="8.5" fill="#888">NVLink 900GB/s</text>
+
+      <!-- Under Leaf C -->
+      <rect x="380" y="270" width="88" height="52" rx="6" fill="#1a1000" stroke="#ffd700" stroke-width="1.5"/>
+      <text x="424" y="290" text-anchor="middle" font-size="9.5" fill="#ffd700">DGX H100 #5</text>
+      <text x="424" y="306" text-anchor="middle" font-size="8.5" fill="#888">8× H100 SXM5</text>
+      <text x="424" y="318" text-anchor="middle" font-size="8.5" fill="#888">NVLink 900GB/s</text>
+      <rect x="480" y="270" width="88" height="52" rx="6" fill="#1a1000" stroke="#ffd700" stroke-width="1.5"/>
+      <text x="524" y="290" text-anchor="middle" font-size="9.5" fill="#ffd700">DGX H100 #6</text>
+      <text x="524" y="306" text-anchor="middle" font-size="8.5" fill="#888">8× H100 SXM5</text>
+      <text x="524" y="318" text-anchor="middle" font-size="8.5" fill="#888">NVLink 900GB/s</text>
+
+      <!-- Under Leaf D -->
+      <rect x="555" y="270" width="88" height="52" rx="6" fill="#1a1000" stroke="#ffd700" stroke-width="1.5"/>
+      <text x="599" y="290" text-anchor="middle" font-size="9.5" fill="#ffd700">DGX H100 #7</text>
+      <text x="599" y="306" text-anchor="middle" font-size="8.5" fill="#888">8× H100 SXM5</text>
+      <text x="599" y="318" text-anchor="middle" font-size="8.5" fill="#888">NVLink 900GB/s</text>
+      <rect x="655" y="270" width="88" height="52" rx="6" fill="#1a1000" stroke="#ffd700" stroke-width="1.5"/>
+      <text x="699" y="290" text-anchor="middle" font-size="9.5" fill="#ffd700">DGX H100 #8</text>
+      <text x="699" y="306" text-anchor="middle" font-size="8.5" fill="#888">8× H100 SXM5</text>
+      <text x="699" y="318" text-anchor="middle" font-size="8.5" fill="#888">NVLink 900GB/s</text>
+
+      <!-- Leaf-to-DGX connections -->
+      <line x1="125" y1="203" x2="74"  y2="270" stroke="#00c8ff" stroke-width="1.2" stroke-opacity=".6"/>
+      <line x1="125" y1="203" x2="174" y2="270" stroke="#00c8ff" stroke-width="1.2" stroke-opacity=".6"/>
+      <line x1="300" y1="203" x2="249" y2="270" stroke="#00c8ff" stroke-width="1.2" stroke-opacity=".6"/>
+      <line x1="300" y1="203" x2="349" y2="270" stroke="#00c8ff" stroke-width="1.2" stroke-opacity=".6"/>
+      <line x1="475" y1="203" x2="424" y2="270" stroke="#00c8ff" stroke-width="1.2" stroke-opacity=".6"/>
+      <line x1="475" y1="203" x2="524" y2="270" stroke="#00c8ff" stroke-width="1.2" stroke-opacity=".6"/>
+      <line x1="650" y1="203" x2="599" y2="270" stroke="#00c8ff" stroke-width="1.2" stroke-opacity=".6"/>
+      <line x1="650" y1="203" x2="699" y2="270" stroke="#00c8ff" stroke-width="1.2" stroke-opacity=".6"/>
+
+      <!-- GPU rows inside DGX (conceptual) -->
+      <!-- Annotations below -->
+      <text x="450" y="355" text-anchor="middle" font-size="12" fill="#888">← InfiniBand NDR 400G between nodes →</text>
+      <text x="450" y="372" text-anchor="middle" font-size="12" fill="#888">← NVLink 4 / NVSwitch 3 within node →</text>
+
+      <!-- Legend -->
+      <rect x="760" y="160" width="130" height="120" rx="8" fill="#111" stroke="#333" stroke-width="1"/>
+      <text x="825" y="178" text-anchor="middle" font-size="11" font-weight="bold" fill="#ddd">Legend</text>
+      <line x1="775" y1="195" x2="805" y2="195" stroke="#76b900" stroke-width="2"/>
+      <text x="812" y="199" font-size="10" fill="#aaa">Spine links</text>
+      <line x1="775" y1="215" x2="805" y2="215" stroke="#00c8ff" stroke-width="2"/>
+      <text x="812" y="219" font-size="10" fill="#aaa">Leaf→DGX</text>
+      <rect x="775" y="228" width="22" height="14" rx="3" fill="#1a1000" stroke="#ffd700" stroke-width="1.2"/>
+      <text x="803" y="239" font-size="10" fill="#aaa">DGX node</text>
+      <rect x="775" y="250" width="22" height="14" rx="3" fill="#001a1a" stroke="#00c8ff" stroke-width="1.2"/>
+      <text x="803" y="261" font-size="10" fill="#aaa">Leaf switch</text>
+
+      <!-- Scale annotation -->
+      <text x="450" y="420" text-anchor="middle" font-size="13" font-weight="bold" fill="#76b900">DGX SuperPOD: 32 nodes × 8 GPUs = 256 H100s | Full pod: ~2.5 ExaFLOPS BF16</text>
+      <text x="450" y="440" text-anchor="middle" font-size="11" fill="#888">Typical training cluster: 4–16 SuperPODs = 1K–4K H100 GPUs</text>
+      <text x="450" y="458" text-anchor="middle" font-size="11" fill="#888">OpenAI GPT-4 estimated: ~25,000 A100s | Meta LLaMA-3 405B: ~16,000 H100s</text>
+    </svg>
+  </div>
+
+  <!-- Interconnect bandwidth comparison -->
+  <h3 style="margin: 2rem 0 1rem; font-size:1.1rem; color:#ddd;">Interconnect Bandwidth Hierarchy</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h3>NVLink 4 (Intra-node)</h3>
+      <p>
+        H100: 900 GB/s bidirectional between GPUs within a DGX node via NVSwitch 3.
+        GB200 NVL72: 130 TB/s total NVLink bandwidth across 72 GPUs.
+      </p>
+      <span class="badge">900 GB/s</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌐</div>
+      <h3>InfiniBand NDR 400G</h3>
+      <p>
+        400 Gb/s per port. DGX H100 has 8× HDR/NDR ports = 3.2 Tb/s per node.
+        Quantum-2 switches connect up to 800 ports non-blocking.
+      </p>
+      <span class="badge">400 Gb/s/port</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔷</div>
+      <h3>RoCE v2 (Ethernet alternative)</h3>
+      <p>
+        RDMA over Converged Ethernet. 400G or 800G options. More cost-effective
+        than IB; used by hyperscalers (Meta, Google). Requires tuning for congestion control.
+      </p>
+      <span class="badge">400–800 Gb/s</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">📡</div>
+      <h3>SHARP (In-network Reduction)</h3>
+      <p>
+        Scalable Hierarchical Aggregation and Reduction Protocol. Performs AllReduce
+        inside IB switches, avoiding sending data to host. 2–5× improvement in
+        collective communication at scale.
+      </p>
+      <span class="badge">IB Feature</span>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 7 – BENCHMARKS / CHARTS
+══════════════════════════════════════════ -->
+<section id="benchmarks">
+  <h2><span class="emoji">📊</span>Performance Benchmarks &amp; Comparisons</h2>
+  <p class="section-sub">
+    Representative performance data from public benchmarks, MLPerf, and published papers.
+    All numbers are approximate and vary with model size, batch size, and precision.
+  </p>
+
+  <div class="charts-grid">
+
+    <!-- Chart 1: GPU Training Throughput -->
+    <div class="chart-wrap">
+      <div class="chart-title">LLaMA-2 70B Training Throughput (tokens/sec per GPU, BF16)</div>
+      <canvas id="chartTraining" height="220"></canvas>
+    </div>
+
+    <!-- Chart 2: Inference Tokens/sec -->
+    <div class="chart-wrap">
+      <div class="chart-title">LLaMA-2 70B Inference Throughput (tokens/sec, TP=8, batch=32)</div>
+      <canvas id="chartInference" height="220"></canvas>
+    </div>
+
+    <!-- Chart 3: Memory Reduction Techniques -->
+    <div class="chart-wrap">
+      <div class="chart-title">GPU Memory Required for 70B Model (GB)</div>
+      <canvas id="chartMemory" height="220"></canvas>
+    </div>
+
+    <!-- Chart 4: GPU Performance Over Generations -->
+    <div class="chart-wrap">
+      <div class="chart-title">NVIDIA GPU BF16 TFLOPS by Generation</div>
+      <canvas id="chartGpuGen" height="220"></canvas>
+    </div>
+
+    <!-- Chart 5: Communication Volume by Parallelism -->
+    <div class="chart-wrap">
+      <div class="chart-title">Relative Communication Overhead (AllReduce volume, arbitrary units)</div>
+      <canvas id="chartComm" height="220"></canvas>
+    </div>
+
+    <!-- Chart 6: Inference Engine Comparison -->
+    <div class="chart-wrap">
+      <div class="chart-title">Inference Engine Relative Throughput (1× = HuggingFace baseline)</div>
+      <canvas id="chartEngines" height="220"></canvas>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 8 – ORCHESTRATION
+══════════════════════════════════════════ -->
+<section id="orchestration" style="border-top:1px solid #1e1e1e; padding: 4rem 2rem; max-width:1200px; margin:0 auto;">
+  <h2><span class="emoji">🎛️</span>Orchestration &amp; MLOps</h2>
+  <p class="section-sub">
+    Running AI infrastructure at scale requires job scheduling, GPU health monitoring,
+    experiment tracking, and a reliable CI/CD pipeline.
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">☸️</div>
+      <h3>Kubernetes + GPU Operator</h3>
+      <p>
+        NVIDIA GPU Operator automates driver/CUDA installation in K8s.
+        Device Plugin exposes GPU resources. Used for inference serving clusters
+        and increasingly for training too.
+      </p>
+      <span class="badge">Orchestration</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">📋</div>
+      <h3>Slurm</h3>
+      <p>
+        De facto HPC job scheduler. Priority queues, time limits, gang scheduling,
+        checkpoint/restart. Most training clusters still use Slurm due to MPI integration.
+      </p>
+      <span class="badge">HPC Standard</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔭</div>
+      <h3>DCGM (Data Center GPU Manager)</h3>
+      <p>
+        NVIDIA's GPU health monitoring, diagnostics, and telemetry collection library.
+        Integrates with Prometheus/Grafana for dashboards. Essential for catching
+        hardware faults before training runs fail.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">☀️</div>
+      <h3>Ray / Ray Train</h3>
+      <p>
+        Python-native distributed framework. Ray Train wraps PyTorch/JAX training with
+        fault tolerance, checkpointing, and autoscaling. Popular in production ML pipelines.
+      </p>
+      <span class="badge">Open Source</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">📈</div>
+      <h3>Weights &amp; Biases / MLflow</h3>
+      <p>
+        Experiment tracking, hyperparameter sweeps, model registry. W&amp;B widely used
+        by AI labs; MLflow common in enterprise. Both support CUDA profiling data logging.
+      </p>
+      <span class="badge">MLOps</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🐳</div>
+      <h3>NGC Container Registry</h3>
+      <p>
+        NVIDIA's official container registry. Pre-built optimised containers for PyTorch,
+        TensorFlow, NeMo, TensorRT. Versioned monthly with latest driver/library combos.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 9 – WHO USES WHAT
+══════════════════════════════════════════ -->
+<section style="border-top:1px solid #1e1e1e; padding: 4rem 2rem; max-width:1200px; margin:0 auto;">
+  <h2><span class="emoji">🏆</span>Who Uses What — Leading AI Labs</h2>
+  <p class="section-sub">
+    Publicly disclosed infrastructure choices from top AI labs (based on papers, blog posts, and announcements).
+  </p>
+
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Lab</th><th>Model</th><th>Hardware</th><th>Training Framework</th><th>Serving</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>OpenAI</strong></td>
+        <td>GPT-4</td>
+        <td>~25K A100 SXM4</td>
+        <td>Custom (Azure + Megatron-style)</td>
+        <td>Custom + Azure</td>
+      </tr>
+      <tr>
+        <td><strong>Meta AI</strong></td>
+        <td>LLaMA-3 405B</td>
+        <td>~16K H100 SXM5</td>
+        <td>PyTorch FSDP + custom</td>
+        <td>vLLM / TRT-LLM</td>
+      </tr>
+      <tr>
+        <td><strong>Anthropic</strong></td>
+        <td>Claude 3.5 Sonnet</td>
+        <td>H100 / A100 (AWS)</td>
+        <td>JAX + custom</td>
+        <td>AWS Bedrock (custom)</td>
+      </tr>
+      <tr>
+        <td><strong>Google DeepMind</strong></td>
+        <td>Gemini Ultra</td>
+        <td>TPU v4 + H100</td>
+        <td>JAX + XLA + Pathways</td>
+        <td>TPU + Vertex AI</td>
+      </tr>
+      <tr>
+        <td><strong>Mistral AI</strong></td>
+        <td>Mixtral 8×22B</td>
+        <td>H100 clusters</td>
+        <td>Megatron-LM</td>
+        <td>vLLM / TRT-LLM</td>
+      </tr>
+      <tr>
+        <td><strong>Databricks/MosaicML</strong></td>
+        <td>DBRX / MPT</td>
+        <td>H100 / A100</td>
+        <td>Composer + FSDP</td>
+        <td>TRT-LLM / vLLM</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     SECTION 10 – REFERENCES
+══════════════════════════════════════════ -->
+<section id="references" style="border-top:1px solid #1e1e1e; padding: 4rem 2rem; max-width:1200px; margin:0 auto;">
+  <h2><span class="emoji">📚</span>References &amp; Further Reading</h2>
+  <p class="section-sub">All data sourced from official documentation, research papers, and public announcements.</p>
+
+  <ul class="refs">
+    <li><a href="https://www.nvidia.com/en-us/data-center/h100/" target="_blank" rel="noopener">NVIDIA H100 Tensor Core GPU Architecture Overview (nvidia.com)</a></li>
+    <li><a href="https://www.nvidia.com/en-us/data-center/dgx-h100/" target="_blank" rel="noopener">NVIDIA DGX H100 System Datasheet (nvidia.com)</a></li>
+    <li><a href="https://docs.nvidia.com/cuda/index.html" target="_blank" rel="noopener">NVIDIA CUDA Documentation (docs.nvidia.com)</a></li>
+    <li><a href="https://github.com/NVIDIA/Megatron-LM" target="_blank" rel="noopener">Megatron-LM: Large, Powerful Transformer Language Models — GitHub (NVIDIA)</a></li>
+    <li><a href="https://arxiv.org/abs/2205.05198" target="_blank" rel="noopener">Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism (Shoeybi et al., 2019/2022)</a></li>
+    <li><a href="https://arxiv.org/abs/2104.04473" target="_blank" rel="noopener">Efficient Large Scale Language Modeling with Mixtures of Experts (Artetxe et al., 2021)</a></li>
+    <li><a href="https://github.com/microsoft/DeepSpeed" target="_blank" rel="noopener">DeepSpeed: Extreme-Scale Model Training for Everyone — GitHub (Microsoft)</a></li>
+    <li><a href="https://arxiv.org/abs/1910.02054" target="_blank" rel="noopener">ZeRO: Memory Optimizations Toward Training Trillion Parameter Models (Rajbhandari et al., 2020)</a></li>
+    <li><a href="https://github.com/vllm-project/vllm" target="_blank" rel="noopener">vLLM: Easy, Fast, and Cheap LLM Serving — GitHub (UC Berkeley)</a></li>
+    <li><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener">Efficient Memory Management for Large Language Model Serving with PagedAttention (Kwon et al., 2023)</a></li>
+    <li><a href="https://github.com/NVIDIA/TensorRT-LLM" target="_blank" rel="noopener">TensorRT-LLM: Optimised LLM Inference — GitHub (NVIDIA)</a></li>
+    <li><a href="https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/index.html" target="_blank" rel="noopener">NVIDIA Triton Inference Server Documentation</a></li>
+    <li><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noopener">FlashAttention: Fast and Memory-Efficient Exact Attention (Dao et al., 2022)</a></li>
+    <li><a href="https://arxiv.org/abs/2307.08691" target="_blank" rel="noopener">FlashAttention-2: Faster Attention with Better Parallelism (Dao, 2023)</a></li>
+    <li><a href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">SGLang: Fast Serving Framework for LLMs and VLMs — GitHub</a></li>
+    <li><a href="https://developer.nvidia.com/nccl" target="_blank" rel="noopener">NCCL: NVIDIA Collective Communications Library (developer.nvidia.com)</a></li>
+    <li><a href="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/" target="_blank" rel="noopener">NVIDIA MIG (Multi-Instance GPU) User Guide</a></li>
+    <li><a href="https://arxiv.org/abs/2302.13971" target="_blank" rel="noopener">LLaMA: Open and Efficient Foundation Language Models (Touvron et al., 2023)</a></li>
+    <li><a href="https://arxiv.org/abs/2307.09288" target="_blank" rel="noopener">Llama 2: Open Foundation and Fine-Tuned Chat Models (Touvron et al., 2023)</a></li>
+    <li><a href="https://mlcommons.org/benchmarks/training/" target="_blank" rel="noopener">MLPerf Training Benchmark Results (mlcommons.org)</a></li>
+    <li><a href="https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-unprecedented-trillion-parameter-llm-training-and-inference-performance/" target="_blank" rel="noopener">NVIDIA GB200 NVL72 Blog Post — Trillion Parameter LLM Performance</a></li>
+    <li><a href="https://developer.nvidia.com/dcgm" target="_blank" rel="noopener">NVIDIA Data Center GPU Manager (DCGM)</a></li>
+    <li><a href="https://github.com/huggingface/text-generation-inference" target="_blank" rel="noopener">HuggingFace Text Generation Inference (TGI) — GitHub</a></li>
+    <li><a href="https://developer.nvidia.com/blog/using-sharp-and-in-network-computing-to-improve-distributed-training-performance/" target="_blank" rel="noopener">SHARP In-Network Computing for Distributed Training (NVIDIA Blog)</a></li>
+    <li><a href="https://pytorch.org/docs/stable/fsdp.html" target="_blank" rel="noopener">PyTorch Fully Sharded Data Parallel (FSDP) Documentation</a></li>
+  </ul>
+</section>
+
+<footer>
+  <p>
+    Built to illustrate the NVIDIA AI infrastructure ecosystem for LLM training &amp; serving.
+    Data sourced from public documentation, research papers, and official announcements.<br/>
+    Hardware specs and benchmark numbers are approximate; always consult official datasheets for authoritative figures.
+  </p>
+  <p style="margin-top:.5rem; color:#555;">nvidia-info &nbsp;|&nbsp; 2025</p>
+</footer>
+
+<!-- ── Chart.js Scripts ── -->
+<script>
+Chart.defaults.color = '#aaa';
+Chart.defaults.borderColor = '#222';
+
+const PALETTE_GREEN = ['#76b900','#5a8e00','#3d6000','#96d900','#b8f040','#d4f980'];
+const PALETTE_BLUE  = ['#00c8ff','#0096cc','#006499','#00e4ff','#66e8ff','#99f0ff'];
+const PALETTE_MIX   = ['#76b900','#00c8ff','#ffd700','#ff6b35','#a855f7','#00e099'];
+
+// Chart 1 – Training throughput
+new Chart(document.getElementById('chartTraining'), {
+  type: 'bar',
+  data: {
+    labels: ['A100 SXM4\n(BF16)', 'H100 SXM5\n(BF16)', 'H100 SXM5\n(FP8)', 'H200 SXM\n(BF16)', 'H200 SXM\n(FP8)'],
+    datasets: [{
+      label: 'Tokens/sec per GPU (LLaMA-2 70B)',
+      data: [1350, 2800, 4200, 3400, 5100],
+      backgroundColor: PALETTE_GREEN,
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#1e1e1e' }, ticks: { color: '#888' } },
+      x: { grid: { display: false }, ticks: { color: '#888' } }
+    }
+  }
+});
+
+// Chart 2 – Inference throughput
+new Chart(document.getElementById('chartInference'), {
+  type: 'bar',
+  data: {
+    labels: ['HF Transformers', 'TGI', 'vLLM', 'TensorRT-LLM\n(FP16)', 'TensorRT-LLM\n(FP8)', 'SGLang'],
+    datasets: [{
+      label: 'Output tokens/sec (LLaMA-2 70B, TP=8)',
+      data: [320, 980, 2400, 3200, 4800, 2900],
+      backgroundColor: PALETTE_BLUE,
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#1e1e1e' }, ticks: { color: '#888' } },
+      x: { grid: { display: false }, ticks: { color: '#888', font: { size: 10 } } }
+    }
+  }
+});
+
+// Chart 3 – Memory requirements
+new Chart(document.getElementById('chartMemory'), {
+  type: 'bar',
+  data: {
+    labels: ['FP32', 'BF16', 'FP8', 'INT8\n(GPTQ)', 'INT4\n(AWQ)', 'INT4\n(2-bit)'],
+    datasets: [{
+      label: 'GPU Memory Required (GB)',
+      data: [560, 280, 140, 140, 70, 35],
+      backgroundColor: ['#ff6b35','#ffd700','#76b900','#00c8ff','#a855f7','#00e099'],
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#1e1e1e' }, ticks: { color: '#888' } },
+      x: { grid: { display: false }, ticks: { color: '#888' } }
+    }
+  }
+});
+
+// Chart 4 – GPU generation TFLOPS
+new Chart(document.getElementById('chartGpuGen'), {
+  type: 'line',
+  data: {
+    labels: ['V100\n(2017)', 'A100\n(2020)', 'H100\n(2022)', 'H200\n(2024)', 'GB200\n(2025)'],
+    datasets: [{
+      label: 'BF16 TFLOPS',
+      data: [125, 312, 989, 989, 2500],
+      borderColor: '#76b900',
+      backgroundColor: 'rgba(118,185,0,.1)',
+      fill: true, tension: 0.3, pointRadius: 6, pointBackgroundColor: '#76b900',
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#1e1e1e' }, ticks: { color: '#888' } },
+      x: { grid: { display: false }, ticks: { color: '#888' } }
+    }
+  }
+});
+
+// Chart 5 – Communication overhead
+new Chart(document.getElementById('chartComm'), {
+  type: 'radar',
+  data: {
+    labels: ['AllReduce\nVolume', 'Memory\nPressure', 'Scaling\nEfficiency', 'Impl.\nComplexity', 'Fault\nTolerance'],
+    datasets: [
+      {
+        label: 'Data Parallel (ZeRO-1)',
+        data: [9, 9, 7, 2, 8],
+        borderColor: '#76b900', backgroundColor: 'rgba(118,185,0,.15)', borderWidth: 2,
+      },
+      {
+        label: 'Tensor Parallel',
+        data: [6, 4, 9, 7, 5],
+        borderColor: '#00c8ff', backgroundColor: 'rgba(0,200,255,.1)', borderWidth: 2,
+      },
+      {
+        label: 'Pipeline Parallel',
+        data: [3, 3, 8, 8, 6],
+        borderColor: '#ffd700', backgroundColor: 'rgba(255,215,0,.1)', borderWidth: 2,
+      },
+      {
+        label: 'ZeRO-3 (Full Sharding)',
+        data: [7, 2, 8, 5, 7],
+        borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,.1)', borderWidth: 2,
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      r: {
+        min: 0, max: 10,
+        grid: { color: '#222' }, angleLines: { color: '#333' },
+        ticks: { color: '#555', stepSize: 2, backdropColor: 'transparent' },
+        pointLabels: { color: '#aaa', font: { size: 10 } },
+      }
+    },
+    plugins: {
+      legend: { labels: { color: '#aaa', font: { size: 11 } } }
+    }
+  }
+});
+
+// Chart 6 – Inference engine comparison
+new Chart(document.getElementById('chartEngines'), {
+  type: 'bar',
+  data: {
+    labels: ['HuggingFace\nTransformers', 'TGI', 'LMDeploy', 'vLLM', 'SGLang', 'TensorRT-LLM\n(FP8)'],
+    datasets: [{
+      label: 'Relative throughput (1× = HF baseline)',
+      data: [1, 3.1, 4.2, 7.5, 9.1, 15.0],
+      backgroundColor: PALETTE_MIX,
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { beginAtZero: true, grid: { color: '#1e1e1e' }, ticks: { color: '#888' } },
+      y: { grid: { display: false }, ticks: { color: '#aaa', font: { size: 11 } } }
+    }
+  }
+});
+</script>
+
+</body>
+</html>
