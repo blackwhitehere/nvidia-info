@@ -31,7 +31,7 @@ jobs:
       - name: Collect static files
         run: |
           mkdir _site
-          cp index.html chart.umd.js _site/
+          cp index.html styles.css charts.js site.js chart.umd.js mermaid.min.js _site/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
