@@ -5,271 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Comprehensive guide to NVIDIA's AI infrastructure stack for LLM training and serving — covering H100, H200, GB200 Blackwell GPUs, CUDA, TensorRT-LLM, vLLM, NVLink, InfiniBand, and more." />
   <title>Nvidia AI Infrastructure Stack – LLM Training &amp; Serving</title>
+  <link rel="stylesheet" href="styles.css" />
   <script src="chart.umd.js"></script>
+  <script src="mermaid.min.js"></script>
   <style>
-    /* ── reset & base ── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --green:  #76b900;
-      --green2: #5a8e00;
-      --dark:   #0a0a0a;
-      --dark2:  #111;
-      --dark3:  #181818;
-      --dark4:  #1e1e1e;
-      --dark5:  #252525;
-      --text:   #e8e8e8;
-      --muted:  #888;
-      --accent: #00c8ff;
-      --yellow: #ffd700;
-      --orange: #ff6b35;
-      --purple: #a855f7;
-      --radius: 12px;
-      --shadow: 0 4px 24px rgba(0,0,0,.6);
-    }
-    html { scroll-behavior: smooth; }
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: var(--dark);
-      color: var(--text);
-      line-height: 1.6;
-    }
-
-    /* ── nav ── */
-    nav {
-      position: sticky; top: 0; z-index: 100;
-      background: rgba(10,10,10,.95);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid #222;
-      display: flex; align-items: center; gap: 1rem;
-      padding: .7rem 2rem; flex-wrap: wrap;
-    }
-    nav .logo { color: var(--green); font-weight: 800; font-size: 1.1rem; letter-spacing: .5px; }
-    nav a {
-      color: var(--muted); text-decoration: none; font-size: .85rem;
-      transition: color .2s;
-    }
-    nav a:hover { color: var(--green); }
-
-    /* ── hero ── */
-    .hero {
-      background: linear-gradient(135deg, #0d1a00 0%, #001a2e 50%, #0a0a0a 100%);
-      text-align: center; padding: 6rem 2rem 4rem;
-    }
-    .hero h1 {
-      font-size: clamp(1.8rem, 5vw, 3.2rem);
-      font-weight: 800; line-height: 1.2;
-      background: linear-gradient(90deg, var(--green), var(--accent));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .hero p { max-width: 700px; margin: 1.2rem auto; color: #aaa; font-size: 1.05rem; }
-    .hero .tags { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; margin-top: 1.5rem; }
-    .tag {
-      background: rgba(118,185,0,.15); border: 1px solid rgba(118,185,0,.4);
-      color: var(--green); border-radius: 999px; padding: .3rem .9rem; font-size: .78rem;
-    }
-
-    /* ── sections ── */
-    section { padding: 4rem 2rem; max-width: 1200px; margin: 0 auto; }
-    section + section { border-top: 1px solid #1e1e1e; }
-    h2 {
-      font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 700;
-      color: var(--green); margin-bottom: .4rem;
-    }
-    h2 .emoji { margin-right: .5rem; }
-    .section-sub { color: var(--muted); margin-bottom: 2rem; font-size: .95rem; }
-
-    /* ── stack diagram ── */
-    .stack {
-      display: flex; flex-direction: column; gap: .7rem; position: relative;
-    }
-    .stack-row {
-      border-radius: var(--radius);
-      padding: 1rem 1.5rem;
-      display: flex; align-items: flex-start; gap: 1rem;
-      position: relative; overflow: hidden;
-      transition: transform .2s, box-shadow .2s;
-    }
-    .stack-row:hover { transform: translateX(6px); box-shadow: var(--shadow); }
-    .stack-row .layer-label {
-      writing-mode: vertical-rl; text-orientation: mixed;
-      transform: rotate(180deg); font-size: .7rem; font-weight: 700;
-      letter-spacing: 1px; text-transform: uppercase; opacity: .7;
-      min-width: 18px;
-    }
-    .stack-row .layer-content { flex: 1; }
-    .stack-row h3 { font-size: 1rem; font-weight: 700; margin-bottom: .3rem; }
-    .stack-row p { font-size: .85rem; color: #bbb; }
-
-    /* layer colors */
-    .layer-hw    { background: linear-gradient(135deg,#1a2600,#0a1600); border-left: 4px solid var(--green); }
-    .layer-net   { background: linear-gradient(135deg,#001a1a,#001010); border-left: 4px solid var(--accent); }
-    .layer-sys   { background: linear-gradient(135deg,#1a1000,#100800); border-left: 4px solid var(--yellow); }
-    .layer-fw    { background: linear-gradient(135deg,#1a001a,#120012); border-left: 4px solid var(--purple); }
-    .layer-train { background: linear-gradient(135deg,#1a0800,#100500); border-left: 4px solid var(--orange); }
-    .layer-infer { background: linear-gradient(135deg,#001a10,#000e08); border-left: 4px solid #00e099; }
-    .layer-orch  { background: linear-gradient(135deg,#1a1a00,#0e0e00); border-left: 4px solid #e6e600; }
-
-    .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
-    .chip {
-      background: rgba(255,255,255,.07); border-radius: 6px;
-      padding: .2rem .65rem; font-size: .78rem; color: #ddd;
-      border: 1px solid rgba(255,255,255,.1);
-    }
-    .chip.hl { background: rgba(118,185,0,.18); border-color: rgba(118,185,0,.4); color: var(--green); }
-    .chip.hl-b { background: rgba(0,200,255,.12); border-color: rgba(0,200,255,.35); color: var(--accent); }
-    .chip.hl-p { background: rgba(168,85,247,.15); border-color: rgba(168,85,247,.4); color: #c084fc; }
-    .chip.hl-o { background: rgba(255,107,53,.15); border-color: rgba(255,107,53,.4); color: #ff9a7a; }
-
-    /* ── cards grid ── */
-    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.2rem; }
-    .card {
-      background: var(--dark3); border-radius: var(--radius);
-      border: 1px solid #2a2a2a; padding: 1.4rem;
-      transition: border-color .2s, transform .2s;
-    }
-    .card:hover { border-color: var(--green); transform: translateY(-3px); }
-    .card-icon { font-size: 2rem; margin-bottom: .7rem; }
-    .card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .4rem; }
-    .card p { font-size: .83rem; color: #aaa; }
-    .card .badge {
-      display: inline-block; margin-top: .6rem;
-      background: rgba(118,185,0,.15); border: 1px solid rgba(118,185,0,.3);
-      color: var(--green); border-radius: 999px; padding: .15rem .7rem; font-size: .72rem;
-    }
-
-    /* ── chart containers ── */
-    .chart-wrap {
-      background: var(--dark3); border-radius: var(--radius);
-      border: 1px solid #222; padding: 1.4rem;
-    }
-    .chart-title { font-size: .95rem; font-weight: 600; margin-bottom: 1rem; color: #ccc; }
-    .charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.2rem; }
-
-    /* ── topology diagram ── */
-    .topo-wrap {
-      background: var(--dark3); border-radius: var(--radius);
-      border: 1px solid #222; padding: 1.5rem; overflow-x: auto;
-    }
-    .topo-wrap svg text { font-family: 'Segoe UI', sans-serif; }
-
-    /* ── comparison table ── */
-    table {
-      width: 100%; border-collapse: collapse; font-size: .85rem;
-      background: var(--dark3); border-radius: var(--radius); overflow: hidden;
-    }
-    th {
-      background: rgba(118,185,0,.2); color: var(--green);
-      padding: .75rem 1rem; text-align: left; font-size: .8rem; letter-spacing: .5px;
-    }
-    td { padding: .7rem 1rem; border-bottom: 1px solid #222; color: #ddd; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(255,255,255,.03); }
-    .good { color: #76b900; }
-    .med  { color: #ffd700; }
-    .low  { color: #ff6b35; }
-
-    /* ── reference list ── */
-    .refs { list-style: none; }
-    .refs li {
-      padding: .6rem 0; border-bottom: 1px solid #1e1e1e;
-      display: flex; gap: .7rem; font-size: .85rem;
-    }
-    .refs li::before {
-      content: '→'; color: var(--green); flex-shrink: 0; font-weight: 700;
-    }
-    .refs a { color: var(--accent); text-decoration: none; }
-    .refs a:hover { text-decoration: underline; }
-
-    /* ── flow diagram ── */
-    .flow { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
-    .flow-box {
-      background: var(--dark4); border: 1px solid #333; border-radius: 8px;
-      padding: .6rem 1rem; font-size: .82rem; font-weight: 600;
-      transition: background .2s;
-    }
-    .flow-box:hover { background: #222; }
-    .flow-arrow { color: var(--muted); font-size: 1.2rem; }
-
-    /* ── highlight box ── */
-    .highlight-box {
-      background: linear-gradient(135deg, rgba(118,185,0,.1), rgba(0,200,255,.1));
-      border: 1px solid rgba(118,185,0,.3); border-radius: var(--radius);
-      padding: 1.5rem; margin: 1.5rem 0;
-    }
-  .highlight-box h3 { color: var(--green); margin-bottom: .5rem; }
-  .highlight-box p { color: #bbb; font-size: .9rem; }
-
-    /* ── developer journey ── */
-    .journey-flow {
-      display: flex; flex-wrap: wrap; gap: .55rem; margin-bottom: 1.5rem;
-    }
-    .flow-pill {
-      background: var(--dark4); border: 1px solid #2e2e2e; border-radius: 999px;
-      padding: .35rem .85rem; font-size: .76rem; color: #cfcfcf;
-    }
-    .journey-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.2rem;
-    }
-    .journey-step {
-      background: var(--dark3); border: 1px solid #2a2a2a; border-radius: var(--radius);
-      padding: 1.35rem; box-shadow: var(--shadow);
-    }
-    .journey-step-header {
-      display: flex; align-items: center; gap: .8rem; margin-bottom: .9rem;
-    }
-    .step-num {
-      width: 2rem; height: 2rem; border-radius: 999px;
-      display: inline-flex; align-items: center; justify-content: center;
-      background: rgba(118,185,0,.18); color: var(--green); font-weight: 800; flex-shrink: 0;
-    }
-    .journey-step h3 { font-size: 1rem; color: #f0f0f0; }
-    .journey-step p { color: #b8b8b8; font-size: .84rem; }
-    .journey-meta {
-      margin-top: .8rem; padding: .7rem .85rem; border-left: 3px solid var(--accent);
-      background: rgba(0,200,255,.08); border-radius: 8px; font-size: .78rem; color: #cfefff;
-    }
-    .snippet {
-      margin-top: .95rem; background: #050505; border: 1px solid #202020;
-      border-radius: 10px; overflow-x: auto;
-    }
-    .snippet pre {
-      padding: 1rem; min-width: max-content;
-      font: .76rem/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      color: #d8f6a8;
-    }
-    .snippet .lang {
-      display: block; padding: .5rem .8rem; border-bottom: 1px solid #1c1c1c;
-      font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: #7fd2ff;
-      background: rgba(255,255,255,.02);
-    }
-    .journey-list {
-      list-style: none; display: grid; gap: .45rem; margin-top: .8rem;
-    }
-    .journey-list li {
-      font-size: .79rem; color: #c7c7c7;
-    }
-    .journey-list strong { color: #fff; }
-
-    /* ── footer ── */
-    footer {
-      background: var(--dark2); border-top: 1px solid #222;
-      text-align: center; padding: 2rem;
-      color: var(--muted); font-size: .83rem;
-    }
-
-    /* ── skip-to-content ── */
-    .skip-link {
-      position: absolute; top: -100%; left: 1rem;
-      background: var(--green); color: var(--dark); padding: .5rem 1rem;
-      border-radius: 0 0 8px 8px; font-weight: 700; z-index: 200;
-      text-decoration: none; font-size: .9rem;
-    }
-    .skip-link:focus { top: 0; }
-
-    /* ── responsiveness ── */
-    @media (max-width: 600px) {
-      .stack-row .layer-label { display: none; }
-    }
+    /* styles live in styles.css */
   </style>
 </head>
 <body>
@@ -279,6 +19,7 @@
 <!-- ── Navigation ── -->
 <nav>
   <span class="logo">⬛ NVIDIA AI Stack</span>
+  <a href="#factory">AI Factory</a>
   <a href="#overview">Overview</a>
   <a href="#journey">Developer Journey</a>
   <a href="#hardware">Hardware</a>
@@ -289,8 +30,39 @@
   <a href="#orchestration">Orchestration</a>
   <a href="#labs">Who Uses What</a>
   <a href="#benchmarks">Benchmarks</a>
+  <a href="#glossary">Glossary</a>
   <a href="#references">References</a>
 </nav>
+
+<!-- ── Floating TOC rail (≥1400px viewports) ── -->
+<aside class="toc-rail" aria-label="Page sections">
+  <ol>
+    <li><a href="#factory">AI Factory</a></li>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#journey">Dev Journey</a></li>
+    <li><a href="#hardware">Hardware</a></li>
+    <li><a href="#gpu-picker">└ GPU picker</a></li>
+    <li><a href="#grace">└ Grace-Hopper / GB200</a></li>
+    <li><a href="#software">System Software</a></li>
+    <li><a href="#transformer-engine">└ Transformer Engine / FP8</a></li>
+    <li><a href="#training">Training</a></li>
+    <li><a href="#parallelism-picker">└ Parallelism picker</a></li>
+    <li><a href="#inference">Inference</a></li>
+    <li><a href="#inference-matrix">└ Engine matrix</a></li>
+    <li><a href="#nim">└ NIM</a></li>
+    <li><a href="#dynamo">└ Dynamo</a></li>
+    <li><a href="#lora-serving">└ Multi-LoRA</a></li>
+    <li><a href="#datacenter">Data Center</a></li>
+    <li><a href="#fabric-choice">└ IB vs Spectrum-X</a></li>
+    <li><a href="#orchestration">Orchestration</a></li>
+    <li><a href="#compute-platforms">└ Compute platforms</a></li>
+    <li><a href="#observability">└ Observability loop</a></li>
+    <li><a href="#labs">Who Uses What</a></li>
+    <li><a href="#benchmarks">Benchmarks</a></li>
+    <li><a href="#glossary">Glossary</a></li>
+    <li><a href="#references">References</a></li>
+  </ol>
+</aside>
 
 <!-- ── Hero ── -->
 <div class="hero">
@@ -312,7 +84,219 @@
     <span class="tag">NVLink / InfiniBand</span>
     <span class="tag">Kubernetes / Slurm</span>
   </div>
+  <div class="hero-howto">
+    <strong>How to read this site.</strong>
+    <ol>
+      <li>Start with the <a href="#factory" style="color:var(--accent)">AI Factory diagram</a> below — it stitches every layer into one mental model.</li>
+      <li>Jump to a <a href="#hardware" style="color:var(--accent)">decision tree</a> or <a href="#inference" style="color:var(--accent)">decision matrix</a> when you have a concrete choice to make.</li>
+      <li>Charts show relative trade-offs, not absolute truth — always re-run on your actual workload.</li>
+    </ol>
+  </div>
 </div>
+
+<!-- ══════════════════════════════════════════
+     SECTION 0 – AI FACTORY (MASTER INFOGRAPHIC)
+══════════════════════════════════════════ -->
+<section id="factory">
+  <h2><span class="emoji">🏗️</span>The NVIDIA AI Factory — one connected picture</h2>
+  <p class="section-sub">
+    Every box below maps to a section on this page. Click any node to jump there. Arrows are labeled with the
+    NVIDIA primitive that moves bytes between stages — that is where most integration bugs live.
+  </p>
+
+  <div class="factory-wrap">
+    <svg viewBox="0 0 960 780" role="img" aria-label="End-to-end NVIDIA AI factory from data ingest to serving, with an observability feedback loop.">
+      <defs>
+        <marker id="fa-arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+          <path d="M0,0 L0,9 L9,4.5 Z" fill="#9ab56b"/>
+        </marker>
+        <marker id="fa-loop" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+          <path d="M0,0 L0,9 L9,4.5 Z" fill="#a855f7"/>
+        </marker>
+      </defs>
+
+      <!-- ── Row 1: Data ingest ── -->
+      <g class="factory-node" data-target="journey">
+        <rect x="40"  y="20" width="200" height="64" rx="10" fill="#1a1000" stroke="#ffd700" stroke-width="1.5"/>
+        <text x="140" y="44" text-anchor="middle" font-size="13" fill="#ffd700" font-weight="700">Data Sources</text>
+        <text x="140" y="62" text-anchor="middle" font-size="10" fill="#d9d9d9">Web crawl · Books · Code · Synthetic</text>
+        <text x="140" y="76" text-anchor="middle" font-size="10" fill="#b5b5b5">→ MDS / WebDataset / Parquet</text>
+      </g>
+      <g class="factory-node" data-target="references">
+        <rect x="280" y="20" width="200" height="64" rx="10" fill="#1a1000" stroke="#ffd700" stroke-width="1.5"/>
+        <text x="380" y="44" text-anchor="middle" font-size="13" fill="#ffd700" font-weight="700">Model &amp; Asset Catalog</text>
+        <text x="380" y="62" text-anchor="middle" font-size="10" fill="#d9d9d9">NGC · Hugging Face Hub</text>
+        <text x="380" y="76" text-anchor="middle" font-size="10" fill="#b5b5b5">Containers · Checkpoints · NIMs</text>
+      </g>
+      <g class="factory-node" data-target="software">
+        <rect x="520" y="20" width="200" height="64" rx="10" fill="#1a1000" stroke="#ffd700" stroke-width="1.5"/>
+        <text x="620" y="44" text-anchor="middle" font-size="13" fill="#ffd700" font-weight="700">Tokenizer &amp; Data Loader</text>
+        <text x="620" y="62" text-anchor="middle" font-size="10" fill="#d9d9d9">BPE · SentencePiece · NeMo Curator</text>
+        <text x="620" y="76" text-anchor="middle" font-size="10" fill="#b5b5b5">GPUDirect Storage → HBM</text>
+      </g>
+
+      <!-- arrows row1 → row2 -->
+      <line x1="140" y1="84" x2="280" y2="138" stroke="#9ab56b" stroke-width="1.5" marker-end="url(#fa-arrow)"/>
+      <line x1="380" y1="84" x2="380" y2="138" stroke="#9ab56b" stroke-width="1.5" marker-end="url(#fa-arrow)"/>
+      <line x1="620" y1="84" x2="480" y2="138" stroke="#9ab56b" stroke-width="1.5" marker-end="url(#fa-arrow)"/>
+      <text x="480" y="112" text-anchor="middle" font-size="10" fill="#b5b5b5" font-style="italic">GPUDirect Storage · NCCL</text>
+
+      <!-- ── Row 2: Compute fabric ── -->
+      <g class="factory-node" data-target="hardware">
+        <rect x="60" y="140" width="640" height="100" rx="14" fill="#0e1800" stroke="#76b900" stroke-width="2"/>
+        <text x="380" y="168" text-anchor="middle" font-size="14" fill="#76b900" font-weight="700">Compute Fabric — DGX / HGX / GB200 NVL72</text>
+        <rect x="90"  y="188" width="96" height="36" rx="6" fill="#1a2600" stroke="#76b900"/>
+        <text x="138" y="211" text-anchor="middle" font-size="11" fill="#c8f08a">H100 × 8 (SXM)</text>
+        <rect x="210" y="188" width="96" height="36" rx="6" fill="#1a2600" stroke="#76b900"/>
+        <text x="258" y="211" text-anchor="middle" font-size="11" fill="#c8f08a">H200 × 8 (SXM)</text>
+        <rect x="330" y="188" width="120" height="36" rx="6" fill="#1a2600" stroke="#76b900"/>
+        <text x="390" y="211" text-anchor="middle" font-size="11" fill="#c8f08a">B200 / GB200 NVL72</text>
+        <rect x="480" y="188" width="88" height="36" rx="6" fill="#001a1a" stroke="#00c8ff"/>
+        <text x="524" y="211" text-anchor="middle" font-size="11" fill="#7de8ff">L40S (inf)</text>
+        <rect x="590" y="188" width="92" height="36" rx="6" fill="#001a1a" stroke="#00c8ff"/>
+        <text x="636" y="211" text-anchor="middle" font-size="11" fill="#7de8ff">Grace (CPU)</text>
+      </g>
+
+      <!-- Interconnect sidebar -->
+      <g class="factory-node" data-target="datacenter">
+        <rect x="730" y="140" width="200" height="100" rx="10" fill="#001a1a" stroke="#00c8ff" stroke-width="1.5"/>
+        <text x="830" y="162" text-anchor="middle" font-size="12" fill="#00c8ff" font-weight="700">Interconnect</text>
+        <text x="830" y="180" text-anchor="middle" font-size="10" fill="#d9d9d9">NVLink 4/5 · NVSwitch</text>
+        <text x="830" y="194" text-anchor="middle" font-size="10" fill="#d9d9d9">InfiniBand NDR 400G</text>
+        <text x="830" y="208" text-anchor="middle" font-size="10" fill="#d9d9d9">Spectrum-X · BlueField</text>
+        <text x="830" y="225" text-anchor="middle" font-size="10" fill="#b5b5b5" font-style="italic">SHARP in-network reduce</text>
+      </g>
+      <line x1="700" y1="190" x2="730" y2="190" stroke="#00c8ff" stroke-width="2"/>
+
+      <!-- arrow row2 → row3 -->
+      <line x1="380" y1="240" x2="380" y2="280" stroke="#9ab56b" stroke-width="1.5" marker-end="url(#fa-arrow)"/>
+      <text x="388" y="262" font-size="10" fill="#b5b5b5" font-style="italic">CUDA · cuDNN · Flash Attn</text>
+
+      <!-- ── Row 3: Training ── -->
+      <g class="factory-node" data-target="training">
+        <rect x="40"  y="280" width="200" height="74" rx="10" fill="#1a0800" stroke="#ff6b35" stroke-width="1.5"/>
+        <text x="140" y="304" text-anchor="middle" font-size="13" fill="#ff9a7a" font-weight="700">Distributed Training</text>
+        <text x="140" y="322" text-anchor="middle" font-size="10" fill="#d9d9d9">Megatron-LM · NeMo · FSDP</text>
+        <text x="140" y="338" text-anchor="middle" font-size="10" fill="#b5b5b5">Transformer Engine (FP8)</text>
+        <text x="140" y="350" text-anchor="middle" font-size="9.5" fill="#ff9a7a" font-style="italic">→ NCCL all-reduce</text>
+      </g>
+      <g class="factory-node" data-target="training">
+        <rect x="280" y="280" width="200" height="74" rx="10" fill="#1a0800" stroke="#ff6b35" stroke-width="1.5"/>
+        <text x="380" y="304" text-anchor="middle" font-size="13" fill="#ff9a7a" font-weight="700">Fine-tune / RLHF</text>
+        <text x="380" y="322" text-anchor="middle" font-size="10" fill="#d9d9d9">PEFT · LoRA · QLoRA · DoRA</text>
+        <text x="380" y="338" text-anchor="middle" font-size="10" fill="#d9d9d9">NeMo Aligner · TRL · SFT</text>
+      </g>
+      <g class="factory-node" data-target="inference">
+        <rect x="520" y="280" width="200" height="74" rx="10" fill="#1a0800" stroke="#ff6b35" stroke-width="1.5"/>
+        <text x="620" y="304" text-anchor="middle" font-size="13" fill="#ff9a7a" font-weight="700">Quantize &amp; Compile</text>
+        <text x="620" y="322" text-anchor="middle" font-size="10" fill="#d9d9d9">FP8 · AWQ · GPTQ · SmoothQuant</text>
+        <text x="620" y="338" text-anchor="middle" font-size="10" fill="#d9d9d9">TensorRT-LLM engine build</text>
+      </g>
+
+      <line x1="240" y1="317" x2="280" y2="317" stroke="#9ab56b" stroke-width="1.5" marker-end="url(#fa-arrow)"/>
+      <line x1="480" y1="317" x2="520" y2="317" stroke="#9ab56b" stroke-width="1.5" marker-end="url(#fa-arrow)"/>
+
+      <!-- arrow row3 → row4 -->
+      <line x1="380" y1="354" x2="380" y2="392" stroke="#9ab56b" stroke-width="1.5" marker-end="url(#fa-arrow)"/>
+      <text x="390" y="378" font-size="10" fill="#b5b5b5" font-style="italic">Checkpoint → NGC / object store</text>
+
+      <!-- ── Row 4: Serving stack ── -->
+      <g class="factory-node" data-target="inference">
+        <rect x="60" y="392" width="640" height="110" rx="14" fill="#001a10" stroke="#00e099" stroke-width="2"/>
+        <text x="380" y="420" text-anchor="middle" font-size="14" fill="#00e099" font-weight="700">Inference Serving</text>
+        <rect x="90"  y="436" width="118" height="36" rx="6" fill="#003020" stroke="#00e099"/>
+        <text x="149" y="459" text-anchor="middle" font-size="11" fill="#9ff5d6">TensorRT-LLM</text>
+        <rect x="218" y="436" width="88" height="36" rx="6" fill="#003020" stroke="#00e099"/>
+        <text x="262" y="459" text-anchor="middle" font-size="11" fill="#9ff5d6">vLLM</text>
+        <rect x="316" y="436" width="88" height="36" rx="6" fill="#003020" stroke="#00e099"/>
+        <text x="360" y="459" text-anchor="middle" font-size="11" fill="#9ff5d6">SGLang</text>
+        <rect x="414" y="436" width="88" height="36" rx="6" fill="#003020" stroke="#00e099"/>
+        <text x="458" y="459" text-anchor="middle" font-size="11" fill="#9ff5d6">Dynamo</text>
+        <rect x="512" y="436" width="178" height="36" rx="6" fill="#003020" stroke="#00e099" stroke-dasharray="4 3"/>
+        <text x="601" y="459" text-anchor="middle" font-size="11" fill="#9ff5d6">Triton / NIM wrapper</text>
+        <text x="380" y="492" text-anchor="middle" font-size="10" fill="#b5b5b5" font-style="italic">continuous batching · paged KV · FP8 · speculative decoding · multi-LoRA</text>
+      </g>
+
+      <g class="factory-node" data-target="orchestration">
+        <rect x="730" y="392" width="200" height="110" rx="10" fill="#1a1a00" stroke="#e6e600" stroke-width="1.5"/>
+        <text x="830" y="416" text-anchor="middle" font-size="12" fill="#e6e600" font-weight="700">API Gateway</text>
+        <text x="830" y="434" text-anchor="middle" font-size="10" fill="#d9d9d9">OpenAI-compatible</text>
+        <text x="830" y="448" text-anchor="middle" font-size="10" fill="#d9d9d9">Auth · rate limit · routing</text>
+        <text x="830" y="466" text-anchor="middle" font-size="10" fill="#b5b5b5">→ Clients / Apps</text>
+        <text x="830" y="484" text-anchor="middle" font-size="10" fill="#b5b5b5">→ Agents / Pipelines</text>
+      </g>
+      <line x1="700" y1="447" x2="730" y2="447" stroke="#00e099" stroke-width="2" marker-end="url(#fa-arrow)"/>
+
+      <!-- arrow row4 → row5 orchestration -->
+      <line x1="380" y1="502" x2="380" y2="540" stroke="#9ab56b" stroke-width="1.5" marker-end="url(#fa-arrow)"/>
+
+      <!-- ── Row 5: Orchestration & observability ── -->
+      <g class="factory-node" data-target="orchestration">
+        <rect x="40"  y="540" width="200" height="80" rx="10" fill="#1a1a00" stroke="#e6e600" stroke-width="1.5"/>
+        <text x="140" y="564" text-anchor="middle" font-size="13" fill="#e6e600" font-weight="700">Scheduling</text>
+        <text x="140" y="582" text-anchor="middle" font-size="10" fill="#d9d9d9">Kubernetes + GPU Operator</text>
+        <text x="140" y="596" text-anchor="middle" font-size="10" fill="#d9d9d9">Slurm · Run:ai · Base Command</text>
+        <text x="140" y="612" text-anchor="middle" font-size="10" fill="#b5b5b5">DGX Cloud · bare-metal</text>
+      </g>
+      <g class="factory-node" data-target="orchestration">
+        <rect x="280" y="540" width="200" height="80" rx="10" fill="#14002a" stroke="#a855f7" stroke-width="1.5"/>
+        <text x="380" y="564" text-anchor="middle" font-size="13" fill="#c084fc" font-weight="700">Telemetry</text>
+        <text x="380" y="582" text-anchor="middle" font-size="10" fill="#d9d9d9">DCGM exporter</text>
+        <text x="380" y="596" text-anchor="middle" font-size="10" fill="#d9d9d9">SM util · HBM BW · NVLink tx</text>
+        <text x="380" y="612" text-anchor="middle" font-size="10" fill="#d9d9d9">ECC · power · thermals</text>
+      </g>
+      <g class="factory-node" data-target="orchestration">
+        <rect x="520" y="540" width="200" height="80" rx="10" fill="#14002a" stroke="#a855f7" stroke-width="1.5"/>
+        <text x="620" y="564" text-anchor="middle" font-size="13" fill="#c084fc" font-weight="700">Observability</text>
+        <text x="620" y="582" text-anchor="middle" font-size="10" fill="#d9d9d9">Prometheus · Grafana</text>
+        <text x="620" y="596" text-anchor="middle" font-size="10" fill="#d9d9d9">W&amp;B · MLflow · OpenTelemetry</text>
+        <text x="620" y="612" text-anchor="middle" font-size="10" fill="#d9d9d9">Alertmanager · PagerDuty</text>
+      </g>
+      <g class="factory-node" data-target="orchestration">
+        <rect x="760" y="540" width="170" height="80" rx="10" fill="#14002a" stroke="#a855f7" stroke-width="1.5"/>
+        <text x="845" y="564" text-anchor="middle" font-size="13" fill="#c084fc" font-weight="700">Autoscaler</text>
+        <text x="845" y="582" text-anchor="middle" font-size="10" fill="#d9d9d9">HPA on tokens/sec</text>
+        <text x="845" y="596" text-anchor="middle" font-size="10" fill="#d9d9d9">KEDA · Karpenter</text>
+        <text x="845" y="612" text-anchor="middle" font-size="10" fill="#d9d9d9">Run:ai quotas</text>
+      </g>
+
+      <line x1="240" y1="580" x2="280" y2="580" stroke="#9ab56b" stroke-width="1.5" marker-end="url(#fa-arrow)"/>
+      <line x1="480" y1="580" x2="520" y2="580" stroke="#9ab56b" stroke-width="1.5" marker-end="url(#fa-arrow)"/>
+      <line x1="720" y1="580" x2="760" y2="580" stroke="#9ab56b" stroke-width="1.5" marker-end="url(#fa-arrow)"/>
+
+      <!-- feedback loop: autoscaler → compute fabric -->
+      <path d="M 845 540 C 845 410, 940 250, 850 190" stroke="#a855f7" stroke-width="1.8" fill="none" stroke-dasharray="5 3" marker-end="url(#fa-loop)"/>
+      <text x="888" y="370" font-size="10" fill="#c084fc" font-style="italic" transform="rotate(90 888 370)">scale / reschedule / heal</text>
+
+      <!-- Bottom summary -->
+      <text x="480" y="670" text-anchor="middle" font-size="12" fill="#76b900" font-weight="700">Data → Compute → Train → Post-train → Serve → Observe → Feedback</text>
+      <text x="480" y="692" text-anchor="middle" font-size="10.5" fill="#d9d9d9">Every layer is an NVIDIA integration point. Arrows show where CUDA / NCCL / GPUDirect / Triton live.</text>
+
+      <!-- Legend -->
+      <g font-size="10" fill="#b5b5b5">
+        <rect x="40"  y="720" width="12" height="12" rx="2" fill="#1a1000" stroke="#ffd700"/>
+        <text x="58"  y="730">Data</text>
+        <rect x="104" y="720" width="12" height="12" rx="2" fill="#0e1800" stroke="#76b900"/>
+        <text x="122" y="730">Hardware</text>
+        <rect x="190" y="720" width="12" height="12" rx="2" fill="#001a1a" stroke="#00c8ff"/>
+        <text x="208" y="730">Network</text>
+        <rect x="272" y="720" width="12" height="12" rx="2" fill="#1a0800" stroke="#ff6b35"/>
+        <text x="290" y="730">Training / Post-train</text>
+        <rect x="410" y="720" width="12" height="12" rx="2" fill="#001a10" stroke="#00e099"/>
+        <text x="428" y="730">Serving</text>
+        <rect x="484" y="720" width="12" height="12" rx="2" fill="#1a1a00" stroke="#e6e600"/>
+        <text x="502" y="730">Orchestration</text>
+        <rect x="580" y="720" width="12" height="12" rx="2" fill="#14002a" stroke="#a855f7"/>
+        <text x="598" y="730">Observability</text>
+      </g>
+    </svg>
+  </div>
+  <p class="section-sub" style="margin-top:.5rem">
+    Tip: many production failures happen at the <em>arrows</em>, not the nodes — checkpoint-to-engine format mismatches,
+    NCCL topology detection, GPUDirect Storage permissions, or autoscaler signals missing from Prometheus.
+  </p>
+</section>
+
 
 <!-- ══════════════════════════════════════════
      SECTION 1 – FULL STACK OVERVIEW
@@ -793,8 +777,67 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
     </div>
   </div>
 
+  <div class="subsection" id="gpu-picker">
+    <h3>Which GPU should I pick?</h3>
+    <p>Answer the three questions below to get a starting-point recommendation. The decision tree underneath shows the reasoning the picker applies.</p>
+
+    <div class="picker" id="gpuPicker">
+      <div class="picker-inputs">
+        <div class="picker-field">
+          <label for="gpuPhase">Phase</label>
+          <select id="gpuPhase" data-field="phase">
+            <option value="inference">Inference serving</option>
+            <option value="training">Pre-training from scratch</option>
+            <option value="fine-tune">Fine-tuning (LoRA / SFT)</option>
+            <option value="edge">Edge / dev workstation</option>
+          </select>
+        </div>
+        <div class="picker-field">
+          <label for="gpuParams">Model size (B params)</label>
+          <input type="number" id="gpuParams" data-field="params" min="0.1" step="0.1" value="70" />
+        </div>
+        <div class="picker-field">
+          <label for="gpuLatency">Latency critical? (p99 &lt; 200ms)</label>
+          <select id="gpuLatency" data-field="latency">
+            <option value="no">No (batch / offline ok)</option>
+            <option value="yes">Yes (interactive chat)</option>
+          </select>
+        </div>
+      </div>
+      <div class="picker-result" data-result></div>
+    </div>
+
+    <div class="mermaid-wrap">
+      <pre class="mermaid">
+flowchart TD
+    Start([What are you building?]) --> P{Phase?}
+    P -->|Edge / dev| E[RTX 6000 Ada · L4 · Jetson Orin]
+    P -->|Fine-tune| F{Params ≤ 13B?}
+    F -->|Yes| F1[Single H100 80GB<br/>QLoRA: A100 works]
+    F -->|No| F2[8× H100 80GB<br/>or H200 141GB · FSDP]
+    P -->|Inference| I{Params &lt; 13B?}
+    I -->|Yes| I1[L40S 48GB · L4 24GB<br/>cost-optimal PCIe]
+    I -->|No| I2{Params ≤ 70B?}
+    I2 -->|Yes| I3[H100 80GB x2–8<br/>H200 141GB x1–4]
+    I2 -->|No| I4{Latency critical?}
+    I4 -->|Yes, p99 &lt; 200ms| I5[GB200 NVL72 · B200 HGX<br/>72-GPU NVLink domain]
+    I4 -->|No, batch OK| I6[H200 x8 TP=8<br/>cost sweet spot]
+    P -->|Training| T{Params &lt; 7B?}
+    T -->|Yes| T1[Single 8× HGX H100/H200<br/>FSDP or Megatron-LM]
+    T -->|No| T2{Params ≤ 70B?}
+    T2 -->|Yes| T3[HGX cluster + IB NDR<br/>TP=8 intra-node · DP inter-node]
+    T2 -->|No| T4[DGX SuperPOD<br/>or GB200 NVL72<br/>3D parallelism · SHARP]
+
+    classDef leaf fill:#0e1800,stroke:#76b900,color:#c8f08a
+    classDef decision fill:#141414,stroke:#00c8ff,color:#7de8ff
+    class E,F1,F2,I1,I3,I5,I6,T1,T3,T4 leaf
+    class P,F,I,I2,I4,T,T2 decision
+      </pre>
+    </div>
+  </div>
+
   <h3 style="margin: 2rem 0 1rem; font-size:1.1rem; color:#ddd;">GPU Specification Comparison</h3>
-  <div style="overflow-x:auto">
+  <div class="table-wrap">
   <table>
     <thead>
       <tr>
@@ -841,6 +884,34 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
       </tr>
     </tbody>
   </table>
+  </div>
+
+  <div class="subsection" id="grace">
+    <h3>Grace CPU &amp; coherent memory (GH200 / GB200)</h3>
+    <p>
+      The Grace CPU is a 72-core Arm Neoverse V2 chip that NVIDIA pairs with Hopper (GH200) or
+      Blackwell (GB200) GPUs over a <strong>NVLink-C2C</strong> link running at 900 GB/s — roughly
+      7× faster than PCIe 5.0 x16. Critically, CPU and GPU share a
+      <em>coherent</em> address space, so a kernel can read system memory without explicit copies
+      and CPU offload no longer pays the PCIe tax.
+    </p>
+    <div class="cards" style="margin-top:1rem">
+      <div class="card">
+        <div class="card-icon">🔗</div>
+        <h3>GH200 Grace-Hopper</h3>
+        <p>1× Grace (72 cores, up to 480 GB LPDDR5X) + 1× H100 (96 GB HBM3). Ideal for workloads with giant KV caches or embedding tables that spill past GPU HBM.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🧱</div>
+        <h3>GB200 NVL72</h3>
+        <p>36× Grace + 72× Blackwell in one liquid-cooled rack, all on a single NVLink 5 domain. The entire rack acts like one huge GPU — TP=72 without leaving NVLink.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">💡</div>
+        <h3>What it unlocks</h3>
+        <p>ZeRO-Infinity / DeepSpeed offload runs near-HBM speed. MoE expert parameters can live in LPDDR. Giant inference context windows (millions of tokens) stop being memory-bound.</p>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -926,10 +997,63 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
       <h3>NVSHMEM</h3>
       <p>
         OpenSHMEM-based symmetric memory interface for GPU clusters.
-        Enables fine-grained GPU-initiated communication — used in 
+        Enables fine-grained GPU-initiated communication — used in
         advanced pipeline parallelism.
       </p>
       <span class="badge">Advanced</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🧠</div>
+      <h3>Transformer Engine</h3>
+      <p>
+        NVIDIA library that transparently uses Hopper/Blackwell FP8 Tensor Cores for
+        attention and MLP layers. Handles amax tracking, delayed scaling, and the BF16
+        ↔ FP8 boundaries so you don't hand-tune scales. Integrates with PyTorch
+        (<code>te.Linear</code>), NeMo, and Megatron-LM.
+      </p>
+      <span class="badge">NVIDIA · FP8</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎯</div>
+      <h3>TensorRT (classic)</h3>
+      <p>
+        General-purpose CUDA inference compiler — the non-LLM sibling of TensorRT-LLM. Use
+        it for CV, ASR, recommender, and any graph that isn't transformer-shaped. Consumes
+        ONNX or PyTorch and emits a <code>.plan</code> engine Triton can serve.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">📚</div>
+      <h3>NGC Catalog</h3>
+      <p>
+        NVIDIA's registry of containers, pretrained checkpoints, Helm charts, and Jupyter
+        notebooks. Not just container hosting — ships versioned NIMs, NeMo recipes, and
+        CUDA-X images matched to driver releases.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+  </div>
+
+  <div class="subsection" id="transformer-engine">
+    <h3>FP8 training with Transformer Engine — why it matters</h3>
+    <p>
+      FP8 has 2× the throughput of BF16 on Hopper and 4× on Blackwell, but naïve FP8 training
+      diverges because activations have a wider dynamic range than the format can hold.
+      Transformer Engine solves this with <strong>per-tensor scaling factors</strong> tracked via an
+      exponential moving average of the observed maximum absolute value (amax), then applied with a
+      one-step delay so the scale never depends on the current step's un-seen distribution.
+    </p>
+    <div class="highlight-box">
+      <h3>Concretely</h3>
+      <p>
+        Wrap <code>nn.Linear</code> with <code>transformer_engine.pytorch.Linear</code>; wrap the
+        whole transformer block with <code>te.TransformerLayer</code>. Inputs still flow in BF16, the
+        weights and matmul run in FP8, and output gradients round-trip back to BF16. The scaling
+        recipe lives in <code>te.fp8_autocast(fp8_recipe=DelayedScaling(...))</code>. NeMo and
+        Megatron-LM set this up automatically — FSDP works too (enable
+        <code>mixed_precision=MixedPrecision(reduce_dtype=torch.bfloat16)</code>).
+      </p>
     </div>
   </div>
 </section>
@@ -946,13 +1070,63 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
   </p>
 
   <div class="highlight-box">
-    <h3>3D Parallelism Explained</h3>
+    <h3>3D Parallelism in one paragraph</h3>
     <p>
-      <strong>Data Parallelism (DP):</strong> Replicate model; each replica processes a different mini-batch. Gradients all-reduced across replicas.<br><br>
-      <strong>Tensor Parallelism (TP):</strong> Split individual layers (e.g., QKV attention, MLP) across GPUs. Requires all-reduce each layer.<br><br>
-      <strong>Pipeline Parallelism (PP):</strong> Partition sequential model layers across GPUs. Microbatches overlap compute and communication.<br><br>
-      <strong>Example — GPT-3 175B:</strong> TP=8 (within DGX node via NVLink), PP=16 (across nodes via IB), DP=2048 (data parallelism)
+      <strong>Data Parallelism (DP)</strong> replicates the model and all-reduces gradients.
+      <strong>Tensor Parallelism (TP)</strong> shards every layer's weights and all-reduces activations inside each layer — keep TP within one NVLink domain.
+      <strong>Pipeline Parallelism (PP)</strong> partitions layers across GPUs with interleaved 1F1B microbatches — tolerates slower inter-node links.
+      <strong>ZeRO-3 / FSDP</strong> shards params, grads, and optimizer state across the DP group — simpler than TP, worse compute-comm overlap.
+      A GPT-3 175B run might use <code>TP=8 · PP=16 · DP=2048</code>: TP inside a DGX node, PP across nodes, DP across the cluster.
     </p>
+  </div>
+
+  <div class="subsection" id="parallelism-picker">
+    <h3>Which parallelism strategy should I use?</h3>
+    <p>
+      Enter model size, per-GPU memory, and cluster size. The picker uses a memory budget of
+      <code>16 bytes/param</code> (BF16 weights + BF16 grads + FP32 Adam states) plus ~1.5 GB/B activations
+      with selective recompute at micro-batch 1 / seq 4K, then picks the simplest strategy that fits with 15% headroom.
+      It assumes <em>full-parameter</em> training — LoRA/QLoRA collapses the optimizer-state term and lets much smaller
+      clusters work.
+    </p>
+
+    <div class="picker" id="parallelismPicker">
+      <div class="picker-inputs">
+        <div class="picker-field">
+          <label for="ppParams">Model params (B)</label>
+          <input type="number" id="ppParams" data-field="params" min="0.1" step="0.1" value="70" />
+        </div>
+        <div class="picker-field">
+          <label for="ppMem">Memory per GPU (GB)</label>
+          <input type="number" id="ppMem" data-field="mem" min="8" step="1" value="80" />
+        </div>
+        <div class="picker-field">
+          <label for="ppGpus">Total GPUs</label>
+          <input type="number" id="ppGpus" data-field="gpus" min="1" step="1" value="32" />
+        </div>
+      </div>
+      <div class="picker-result" data-result></div>
+    </div>
+
+    <div class="mermaid-wrap">
+      <pre class="mermaid">
+flowchart TD
+    A([model_bytes = 16 · params_B GB + 4 · params_B GB activations]) --> B{Fits on 1 GPU?}
+    B -->|Yes| B1[DDP across N GPUs<br/>for throughput]
+    B -->|No| C{Fits with ZeRO-3/FSDP<br/>on N GPUs?}
+    C -->|Yes| C1[ZeRO-3 / FSDP<br/>simplest path]
+    C -->|No| D{TP=8 inside node<br/>fits weights?}
+    D -->|Yes| D1[TP=8 × DP<br/>Megatron-LM / NeMo]
+    D -->|No| E[3D Parallelism<br/>TP=8 · PP=k · DP=rest]
+    E --> F{Still OOM?}
+    F -->|Yes| G[Upgrade: H200 141GB · B200 192GB<br/>or ZeRO-Infinity / Grace-Hopper offload]
+
+    classDef leaf fill:#0e1800,stroke:#76b900,color:#c8f08a
+    classDef decision fill:#141414,stroke:#00c8ff,color:#7de8ff
+    class B1,C1,D1,E,G leaf
+    class B,C,D,F decision
+      </pre>
+    </div>
   </div>
 
   <div class="cards" style="margin-top:1.5rem">
@@ -1105,6 +1279,107 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
     </div>
   </div>
 
+  <div class="subsection" id="inference-matrix">
+    <h3>Inference engine decision matrix</h3>
+    <p>
+      All six engines can serve a 70B Llama, but they optimize for different axes. Use this as a starting
+      heuristic, then benchmark on your actual traffic pattern (prompt length distribution, LoRA count,
+      streaming vs batch) before committing.
+    </p>
+    <div class="table-wrap">
+      <table class="heatmap">
+        <thead>
+          <tr>
+            <th>Engine</th>
+            <th>Throughput</th>
+            <th>p50 latency</th>
+            <th>p99 latency</th>
+            <th>Multi-LoRA</th>
+            <th>Multi-model</th>
+            <th>Ease of deploy</th>
+            <th>Best for</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>TensorRT-LLM</strong></td>
+            <td class="cell r5">★★★★★</td>
+            <td class="cell r5">★★★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r3">★★★</td>
+            <td class="cell r2">★★</td>
+            <td class="cell r2">★★</td>
+            <td>Maximum performance, dedicated model, FP8/INT4</td>
+          </tr>
+          <tr>
+            <td><strong>vLLM</strong></td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r3">★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td>OSS default, fastest iteration, research</td>
+          </tr>
+          <tr>
+            <td><strong>SGLang</strong></td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r3">★★★</td>
+            <td class="cell r3">★★★</td>
+            <td class="cell r3">★★★</td>
+            <td>Structured generation, long prefixes, agents</td>
+          </tr>
+          <tr>
+            <td><strong>TGI (HF)</strong></td>
+            <td class="cell r3">★★★</td>
+            <td class="cell r3">★★★</td>
+            <td class="cell r3">★★★</td>
+            <td class="cell r3">★★★</td>
+            <td class="cell r3">★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td>Hugging Face ecosystem, managed endpoints</td>
+          </tr>
+          <tr>
+            <td><strong>NVIDIA NIM</strong></td>
+            <td class="cell r5">★★★★★</td>
+            <td class="cell r5">★★★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r3">★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r5">★★★★★</td>
+            <td>Enterprise — managed container, OpenAI-compatible, support SLA</td>
+          </tr>
+          <tr>
+            <td><strong>Triton Inference Server</strong></td>
+            <td class="cell rx">wraps others</td>
+            <td class="cell rx">—</td>
+            <td class="cell rx">—</td>
+            <td class="cell rx">—</td>
+            <td class="cell r5">★★★★★</td>
+            <td class="cell r3">★★★</td>
+            <td>Orchestrator for mixed workloads (LLM + CV + ASR)</td>
+          </tr>
+          <tr>
+            <td><strong>NVIDIA Dynamo</strong></td>
+            <td class="cell r5">★★★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r4">★★★★</td>
+            <td class="cell r5">★★★★★</td>
+            <td class="cell r2">★★</td>
+            <td>Disaggregated prefill/decode, multi-tenant at scale</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-sub" style="margin-top:.5rem">
+      Ratings are relative within this table, not absolute. Throughput and latency assume well-tuned
+      deployments on H100/H200; a misconfigured vLLM can beat a misconfigured TRT-LLM.
+    </p>
+  </div>
+
   <!-- Inference techniques -->
   <h3 style="margin: 2rem 0 1rem; font-size:1.1rem; color:#ddd;">Key Inference Optimisation Techniques</h3>
   <div style="overflow-x:auto">
@@ -1123,8 +1398,75 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
       <tr><td><strong>Tensor Parallelism</strong></td><td>Splits model layers across multiple GPUs</td><td class="good">N× with N GPUs</td><td>All major engines</td></tr>
       <tr><td><strong>Flash Attention 3</strong></td><td>IO-aware exact attention, TMA + WGMMA on H100</td><td class="good">2.6× vs FA2</td><td>cuDNN / manual</td></tr>
       <tr><td><strong>Prefix Caching</strong></td><td>Reuse KV cache for repeated system prompts</td><td class="good">High for chatbots</td><td>vLLM, SGLang</td></tr>
+      <tr><td><strong>Multi-LoRA</strong></td><td>Serve many fine-tuned variants from one base model via S-LoRA routing</td><td class="good">~1 base + N free</td><td>vLLM, TRT-LLM, TGI</td></tr>
+      <tr><td><strong>Disaggregated Prefill/Decode</strong></td><td>Split compute-bound prefill from memory-bound decode onto different GPU pools</td><td class="med">1.5–3× tok/\$</td><td>NVIDIA Dynamo</td></tr>
     </tbody>
   </table>
+  </div>
+
+  <div class="subsection" id="nim">
+    <h3>NVIDIA NIM — the managed microservice form factor</h3>
+    <p>
+      A NIM is an OCI container that wraps <strong>Triton + TensorRT-LLM + a specific model</strong>
+      behind an <strong>OpenAI-compatible API</strong>. It starts in seconds, auto-selects the right
+      TRT-LLM engine for the detected GPU, and ships with a health probe and Prometheus metrics
+      endpoint out of the box. Pricing is per-GPU-hour via NVIDIA AI Enterprise licensing.
+    </p>
+    <div class="cards" style="margin-top:1rem">
+      <div class="card">
+        <div class="card-icon">📦</div>
+        <h3>What's in the box</h3>
+        <p>Pre-quantized FP8/INT4 engine, tokenizer, chat template, function-calling schema, gRPC + REST, Kubernetes Helm chart, Grafana dashboard.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🎨</div>
+        <h3>Model catalog</h3>
+        <p>Llama 3.1/3.3, Mistral/Mixtral, Nemotron, DeepSeek-R1, Stable Diffusion, NV-Embed, Riva ASR/TTS, plus enterprise-partner models (Databricks DBRX, Writer Palmyra).</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🤷</div>
+        <h3>Build vs buy</h3>
+        <p>Roll your own Triton+TRT-LLM if you need a custom op or have ML engineers to maintain it. Use NIM if you want an SLA, CVE patches, and no engine-build pipeline.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection" id="dynamo">
+    <h3>NVIDIA Dynamo — disaggregated inference at scale</h3>
+    <p>
+      Dynamo is NVIDIA's open-source distributed inference framework aimed at multi-tenant
+      serving clusters. Its defining idea: <strong>disaggregate prefill from decode</strong>.
+      Prefill (prompt processing) is compute-bound — push it to dense H100s.
+      Decode (token generation) is memory-bandwidth-bound — push it to H200s or B200s with huge HBM.
+      A KV-cache router sends the KV blocks from prefill GPUs to decode GPUs over NVLink or IB, so
+      each workload runs on the GPU best suited to it.
+    </p>
+    <p class="section-sub" style="margin-top:.5rem">
+      Dynamo also adds <strong>smart request routing</strong> (prefix-aware to exploit KV-cache hits),
+      <strong>elastic scaling</strong> (add/remove decode replicas without draining), and
+      <strong>multi-model serving</strong> via Triton underneath. Pick Dynamo over vLLM when you
+      are running dozens of concurrent models or need sub-linear cost scaling past ~32 GPUs.
+    </p>
+  </div>
+
+  <div class="subsection" id="lora-serving">
+    <h3>Fine-tuning pipeline &amp; multi-LoRA serving</h3>
+    <p>
+      Most production customization is <strong>PEFT</strong> — Parameter-Efficient Fine-Tuning —
+      not full-weight updates. LoRA trains two small low-rank matrices per layer; QLoRA quantizes
+      the frozen base to 4-bit first; DoRA decomposes updates into magnitude + direction for better
+      quality at the same parameter budget. A 70B LoRA fine-tune fits on one H100 80 GB in hours.
+    </p>
+    <div class="highlight-box">
+      <h3>Multi-LoRA at serving time (S-LoRA pattern)</h3>
+      <p>
+        The base model loads once into GPU memory. Each request carries an
+        <code>adapter_id</code>; the engine dynamically loads the tiny LoRA weights for that id
+        from CPU/host memory and fuses them into the matmul. A single 8× H100 node can serve
+        hundreds of customer-specific variants of Llama-3 70B without duplicating the 140 GB base.
+        Supported in vLLM, TensorRT-LLM, and TGI.
+      </p>
+    </div>
   </div>
 </section>
 
@@ -1141,7 +1483,7 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
 
   <!-- SVG network topology diagram -->
   <div class="topo-wrap">
-    <svg viewBox="0 0 900 480" width="100%" xmlns="http://www.w3.org/2000/svg" style="max-height:520px">
+    <svg viewBox="0 0 900 480" width="100%" xmlns="http://www.w3.org/2000/svg" style="max-height:520px" role="img" aria-label="Fat-tree InfiniBand network topology connecting HGX H100 nodes through leaf and spine switches.">
       <defs>
         <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
           <path d="M0,0 L0,8 L8,4 Z" fill="#444"/>
@@ -1298,6 +1640,75 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
       </p>
       <span class="badge">IB Feature</span>
     </div>
+    <div class="card">
+      <div class="card-icon">🟣</div>
+      <h3>Spectrum-X (AI Ethernet)</h3>
+      <p>
+        NVIDIA's lossless Ethernet fabric for AI. Spectrum-4 switches + BlueField-3
+        DPUs + adaptive routing + congestion control designed specifically for the bursty,
+        synchronized collectives that LLM training produces. Closes most of the gap to
+        InfiniBand on standard Ethernet cabling.
+      </p>
+      <span class="badge">400G Ethernet</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🛡️</div>
+      <h3>BlueField-3 DPU</h3>
+      <p>
+        Smart-NIC with 16× Arm cores that offloads east-west security,
+        multi-tenant isolation, storage (NVMe-oF), and Spectrum-X congestion-control
+        telemetry. Frees CPU cores for actual training work and keeps tenants isolated
+        in shared clusters.
+      </p>
+      <span class="badge">DPU</span>
+    </div>
+  </div>
+
+  <div class="subsection" id="fabric-choice">
+    <h3>InfiniBand vs Spectrum-X — how to choose</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Criterion</th>
+            <th>InfiniBand NDR (Quantum-2)</th>
+            <th>Spectrum-X (Spectrum-4 + BlueField-3)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Per-port bandwidth</td>
+            <td class="good">400 Gb/s</td>
+            <td class="good">400 Gb/s (800 Gb/s on newer switches)</td>
+          </tr>
+          <tr>
+            <td>All-reduce latency (1 GB, 64 GPUs)</td>
+            <td class="good">~5 ms with SHARP</td>
+            <td class="med">~6–7 ms</td>
+          </tr>
+          <tr>
+            <td>Cabling &amp; operator expertise</td>
+            <td class="med">IB-specific, separate fabric team</td>
+            <td class="good">Standard Ethernet, reuses existing skills</td>
+          </tr>
+          <tr>
+            <td>Multi-tenant isolation</td>
+            <td class="med">Partition keys, coarser</td>
+            <td class="good">VXLAN + DPU-enforced, fine-grained</td>
+          </tr>
+          <tr>
+            <td>Cost (rough)</td>
+            <td class="low">1.0×</td>
+            <td class="good">~0.7–0.8×</td>
+          </tr>
+          <tr>
+            <td>Typical buyer</td>
+            <td>DGX SuperPOD · dedicated training cluster</td>
+            <td>Hyperscalers · multi-tenant AI cloud · mixed training+inference</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
 
@@ -1316,38 +1727,79 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
 
     <!-- Chart 1: GPU Training Throughput -->
     <div class="chart-wrap">
-      <div class="chart-title">LLaMA-2 70B Training Throughput (tokens/sec per GPU, BF16)</div>
-      <canvas id="chartTraining" height="220"></canvas>
+      <div class="chart-title">LLaMA-2 70B Training Throughput (tokens/sec per GPU, BF16 &amp; FP8)</div>
+      <canvas id="chartTraining" height="220" role="img" aria-label="Grouped bar chart: per-GPU training throughput in tokens/sec for LLaMA-2 70B across A100, H100 BF16, H100 FP8, H200 FP8, B200 FP8."></canvas>
+      <div class="chart-source">Source: NVIDIA MLPerf Training v4.0/v4.1 submissions · <a href="https://www.nvidia.com/en-us/data-center/h200/" target="_blank" rel="noopener">H200 product brief</a>. Per-GPU throughput on 8-GPU HGX node with Megatron-LM.</div>
     </div>
 
     <!-- Chart 2: Inference Tokens/sec -->
     <div class="chart-wrap">
       <div class="chart-title">LLaMA-2 70B Inference Throughput (tokens/sec, TP=8, batch=32)</div>
-      <canvas id="chartInference" height="220"></canvas>
+      <canvas id="chartInference" height="220" role="img" aria-label="Bar chart of LLaMA-2 70B inference throughput in tokens/sec for HF Transformers, TGI, vLLM, SGLang, and TensorRT-LLM at TP=8 batch 32."></canvas>
+      <div class="chart-source">Source: <a href="https://blog.vllm.ai/" target="_blank" rel="noopener">vLLM 0.5 benchmarks</a>, <a href="https://github.com/NVIDIA/TensorRT-LLM" target="_blank" rel="noopener">TensorRT-LLM release notes</a>, <a href="https://arxiv.org/abs/2312.07104" target="_blank" rel="noopener">SGLang paper (arXiv:2312.07104)</a>.</div>
     </div>
 
     <!-- Chart 3: Memory Reduction Techniques -->
     <div class="chart-wrap">
-      <div class="chart-title">GPU Memory Required for 70B Model (GB)</div>
-      <canvas id="chartMemory" height="220"></canvas>
+      <div class="chart-title">Weights-only Memory by Quantization (Llama 70B)</div>
+      <canvas id="chartMemory" height="220" role="img" aria-label="Horizontal bar chart of weight-only memory for LLaMA 70B across FP16, FP8, INT8, INT4 AWQ, and 2-bit HQQ precisions."></canvas>
+      <div class="chart-source">Source: bitsandbytes · AutoAWQ · <a href="https://arxiv.org/abs/2306.00978" target="_blank" rel="noopener">AWQ (Lin et al., 2023)</a>. Activations &amp; KV-cache not included.</div>
     </div>
 
     <!-- Chart 4: GPU Performance Over Generations -->
     <div class="chart-wrap">
-      <div class="chart-title">NVIDIA GPU BF16 TFLOPS by Generation</div>
-      <canvas id="chartGpuGen" height="220"></canvas>
+      <div class="chart-title">NVIDIA GPU Peak Compute &amp; HBM Bandwidth by Generation</div>
+      <canvas id="chartGpuGen" height="220" role="img" aria-label="Dual-axis chart: NVIDIA GPU peak dense BF16 TFLOPS (bars) and HBM bandwidth in TB/s (line) across V100, A100, H100, H200, B200, GB200."></canvas>
+      <div class="chart-source">Source: NVIDIA datasheets V100 · A100 · H100 · H200 · B200 · GB200. Dense BF16 TFLOPS (no sparsity).</div>
     </div>
 
-    <!-- Chart 5: Communication Volume by Parallelism -->
+    <!-- Chart 5: Parallelism Trade-offs -->
     <div class="chart-wrap">
-      <div class="chart-title">Relative Communication Overhead (AllReduce volume, arbitrary units)</div>
-      <canvas id="chartComm" height="220"></canvas>
+      <div class="chart-title">Parallelism Strategy Trade-offs (0–10, higher = better)</div>
+      <canvas id="chartComm" height="220" role="img" aria-label="Radar chart comparing DP, ZeRO-3/FSDP, Tensor Parallel, Pipeline Parallel, and 3D Parallel across communication cost, memory efficiency, scalability, ease of use, flexibility, and checkpoint maturity."></canvas>
+      <div class="chart-source">Subjective composite scoring across 6 axes. Based on <a href="https://arxiv.org/abs/1910.02054" target="_blank" rel="noopener">ZeRO paper</a>, <a href="https://arxiv.org/abs/2104.04473" target="_blank" rel="noopener">Megatron-LM scaling paper</a>, <a href="https://pytorch.org/docs/stable/fsdp.html" target="_blank" rel="noopener">FSDP docs</a>.</div>
     </div>
 
     <!-- Chart 6: Inference Engine Comparison -->
     <div class="chart-wrap">
-      <div class="chart-title">Inference Engine Relative Throughput (1× = HuggingFace baseline)</div>
-      <canvas id="chartEngines" height="220"></canvas>
+      <div class="chart-title">Inference Engine Throughput &amp; TTFT (Llama-2 70B, H100 TP=8)</div>
+      <canvas id="chartEngines" height="220" role="img" aria-label="Combined chart: inference engine throughput (bars, baseline HF Transformers = 1.0) and p50 time-to-first-token in milliseconds (line) across HF, TGI, vLLM, SGLang, TensorRT-LLM, and NIM."></canvas>
+      <div class="chart-source">Bars = throughput (× HF Transformers baseline). Line = p50 time-to-first-token.</div>
+    </div>
+
+    <!-- Chart 7: Quantization Pareto -->
+    <div class="chart-wrap">
+      <div class="chart-title">Quantization Pareto — Accuracy vs Speedup</div>
+      <canvas id="chartQuantPareto" height="220" role="img" aria-label="Scatter plot of quantization Pareto: x-axis accuracy drop in percentage points, y-axis speedup versus FP16, with points for FP16, BF16, FP8, INT8 SmoothQuant, INT4 AWQ, INT4 GPTQ, NF4 QLoRA, and 2-bit HQQ."></canvas>
+      <div class="chart-source">Down-left = worst, up-right = fastest but most lossy. Mid-upper area (FP8, AWQ) is the usual production sweet spot.</div>
+    </div>
+
+    <!-- Chart 8: Memory breakdown -->
+    <div class="chart-wrap">
+      <div class="chart-title">Training Memory per GPU by Strategy (Llama 70B + Adam + BF16)</div>
+      <canvas id="chartMemBreakdown" height="220" role="img" aria-label="Stacked bar chart of per-GPU training memory for LLaMA 70B across DP-only, ZeRO-1, ZeRO-2, ZeRO-3/FSDP, TP=8, and 3D-parallel strategies; stacks show params, gradients, optimizer states, and activations."></canvas>
+      <div class="chart-source">DP-only is impractical for 70B (820 GB needed). ZeRO stages and TP progressively shard states. Activations shown with selective recompute.</div>
+    </div>
+
+    <!-- Chart 9: Latency vs Throughput -->
+    <div class="chart-wrap">
+      <div class="chart-title">Inference Pareto — p99 TTFT vs Throughput</div>
+      <canvas id="chartLatThru" height="220" role="img" aria-label="Line chart showing the inference Pareto curve: p99 time-to-first-token on y-axis versus throughput on x-axis, one curve per engine sweeping batch size from 1 to 256."></canvas>
+      <div class="chart-source">Each curve sweeps batch size 1 → 256. Down-right is the goal. Batch 256 increases throughput but always balloons p99 latency.</div>
+    </div>
+
+    <!-- Chart 10: Cost per token -->
+    <div class="chart-wrap">
+      <div class="chart-title">$ per 1M Output Tokens vs Throughput (70B serving)</div>
+      <canvas id="chartCost" height="220" role="img" aria-label="Bubble chart of dollars per million output tokens versus throughput for 70B serving on different GPUs; bubble size represents HBM memory in GB."></canvas>
+      <div class="chart-source">Cost = GPU hourly / throughput. Rates from public CoreWeave/Lambda Labs pricing. Bubble = HBM GB. Illustrative only.</div>
+    </div>
+
+    <!-- Chart 11: Collectives -->
+    <div class="chart-wrap">
+      <div class="chart-title">All-Reduce Latency by Fabric (64 GPU, NCCL 2.20, log scale)</div>
+      <canvas id="chartCollectives" height="220" role="img" aria-label="Grouped bar chart on log scale comparing all-reduce latency for 1 MB, 100 MB, and 1 GB messages across NVLink 4, NVSwitch, InfiniBand NDR, Spectrum-X, and 100G Ethernet."></canvas>
+      <div class="chart-source">Why NVLink + IB matter: a 1 GB all-reduce takes ~1.4 ms on NVLink 4 vs ~22 ms on stock 100G Ethernet — 16× difference. Synthetic figures from NCCL perf tests.</div>
     </div>
 
   </div>
@@ -1421,6 +1873,167 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
       </p>
       <span class="badge">NVIDIA</span>
     </div>
+    <div class="card">
+      <div class="card-icon">🧮</div>
+      <h3>Run:ai (NVIDIA)</h3>
+      <p>
+        Acquired by NVIDIA in 2024. Kubernetes-native GPU scheduler with fractional GPUs
+        (MIG + time-slicing), gang scheduling, quota &amp; fair-share across teams, and
+        priority preemption. Turns a shared GPU cluster into a multi-tenant platform.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎚️</div>
+      <h3>Base Command Platform</h3>
+      <p>
+        NVIDIA's managed training control plane on DGX Cloud — workspace, dataset, and
+        job APIs on top of Slurm+K8s. Lets research teams submit multi-node training jobs
+        without owning the cluster or writing SBATCH scripts.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+    <div class="card">
+      <div class="card-icon">☁️</div>
+      <h3>DGX Cloud</h3>
+      <p>
+        Consumption-model DGX capacity hosted inside AWS, Azure, OCI, and GCP. Reserved
+        HGX H100/H200 nodes with NVIDIA-managed software stack. Path to frontier-scale
+        training without 18-month hardware lead times.
+      </p>
+      <span class="badge">NVIDIA</span>
+    </div>
+  </div>
+
+  <div class="subsection" id="compute-platforms">
+    <h3>Choosing a compute platform — bare-metal vs managed vs scheduler</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Option</th>
+            <th>Bare-metal DGX / HGX</th>
+            <th>DGX Cloud + Base Command</th>
+            <th>Run:ai on your K8s</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ownership model</td>
+            <td>You own hardware, datacenter, fabric</td>
+            <td>NVIDIA-managed on a CSP</td>
+            <td>Your K8s, any GPU hardware</td>
+          </tr>
+          <tr>
+            <td>Lead time</td>
+            <td class="low">6–18 months</td>
+            <td class="good">Days to weeks</td>
+            <td class="good">Same day (if cluster exists)</td>
+          </tr>
+          <tr>
+            <td>Best for</td>
+            <td>Long-horizon frontier training, data residency</td>
+            <td>Burst capacity, strategic projects</td>
+            <td>Multi-tenant inference + dev, fractional GPUs</td>
+          </tr>
+          <tr>
+            <td>Scheduling primitive</td>
+            <td>Slurm (usually)</td>
+            <td>Base Command jobs (Slurm-backed)</td>
+            <td>K8s + Run:ai scheduler</td>
+          </tr>
+          <tr>
+            <td>Fractional GPU / MIG</td>
+            <td class="med">Manual</td>
+            <td class="med">Not the main use case</td>
+            <td class="good">First-class</td>
+          </tr>
+          <tr>
+            <td>Cost profile</td>
+            <td>CapEx + ops staff</td>
+            <td class="low">Premium hourly, bundled support</td>
+            <td>OpEx on your existing GPUs</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin-top:.6rem">
+      Many production shops combine all three: own a DGX SuperPOD for pre-training, burst
+      to DGX Cloud for ad-hoc experiments, and run Run:ai on a K8s inference cluster so
+      that idle GPU-hours are reclaimed for internal dev workloads.
+    </p>
+  </div>
+
+  <div class="subsection" id="observability">
+    <h3>The observability loop — DCGM → Prometheus → Grafana → autoscaler</h3>
+    <p>
+      Every node in the <a href="#factory">AI Factory</a> diagram emits telemetry, and
+      that telemetry is what closes the loop back to scheduling. The canonical pipeline on
+      NVIDIA hardware is <strong>DCGM-Exporter</strong> (a Prometheus exporter shipped by
+      NVIDIA) scraping per-GPU counters, Prometheus storing them, Grafana visualising, and
+      a controller (HPA, KEDA, or Run:ai policy) acting on the signals.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>What it tells you</th>
+            <th>Actionable threshold</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>DCGM_FI_DEV_SM_ACTIVE</code></td>
+            <td>Fraction of time SMs had at least one warp resident — your GPU "busy %"</td>
+            <td>&lt; 60% sustained → kernel launch or data-stall bound</td>
+          </tr>
+          <tr>
+            <td><code>DCGM_FI_PROF_PIPE_TENSOR_ACTIVE</code></td>
+            <td>Tensor-core utilisation — the number that actually maps to useful LLM work</td>
+            <td>&lt; 30% on training → you are not compute-bound; check precision, batch, parallelism</td>
+          </tr>
+          <tr>
+            <td><code>DCGM_FI_DEV_MEM_COPY_UTIL</code> / HBM BW</td>
+            <td>HBM read/write bandwidth used</td>
+            <td>&gt; 85% on inference decode → memory-bandwidth bound (expected); &gt; 85% on training → activation recompute or sharding fix needed</td>
+          </tr>
+          <tr>
+            <td><code>DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL</code></td>
+            <td>NVLink tx+rx bytes — catches mis-placed TP groups across PCIe</td>
+            <td>0 bytes on a "TP=8" job → topology mis-configured</td>
+          </tr>
+          <tr>
+            <td><code>DCGM_FI_DEV_POWER_USAGE</code></td>
+            <td>Per-GPU Watts</td>
+            <td>Sustained &lt; 50% TDP while "training" → idle waiting on I/O</td>
+          </tr>
+          <tr>
+            <td><code>DCGM_FI_DEV_XID_ERRORS</code> / ECC</td>
+            <td>Kernel-visible hardware errors, uncorrectable ECC events</td>
+            <td>Any non-zero → drain node, rerun job from last checkpoint</td>
+          </tr>
+          <tr>
+            <td>App-level <code>tokens_per_second</code></td>
+            <td>End-to-end useful throughput from the serving engine</td>
+            <td>Feed directly into HPA / KEDA — scale replicas on tok/s and queue depth, <em>not</em> CPU%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin-top:.6rem">
+      Why not CPU%? LLM serving nodes run the CPU at ~10–20% regardless of load because
+      almost all work is on the GPU. CPU-based autoscaling under-provisions aggressively.
+      Scale on the queue depth reported by Triton / vLLM / Dynamo, or on GPU SM-active
+      averaged over a 30–60 s window.
+    </p>
+    <p class="hint">
+      <strong>Fault tolerance:</strong> XID / ECC alerts from DCGM are the trigger for
+      NeMo / Megatron-LM's async checkpoint-and-resume. On a SuperPOD, losing a node mid-run
+      is routine; the stack is designed around it. Your checkpoint cadence should be set
+      by MTBF × cluster size, not by instinct — on 10 000 GPUs expect a failure every
+      few hours.
+    </p>
   </div>
 </section>
 
@@ -1505,6 +2118,63 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
 
 
 <!-- ══════════════════════════════════════════
+     SECTION 9.5 – GLOSSARY
+══════════════════════════════════════════ -->
+<section id="glossary" style="border-top:1px solid #1e1e1e; padding: 4rem 2rem; max-width:1200px; margin:0 auto;">
+  <h2><span class="emoji">📖</span>Glossary</h2>
+  <p class="section-sub">
+    Quick definitions for terms used throughout the site. Anywhere a term appears
+    inside an <code>&lt;abbr&gt;</code> tag, hovering shows the definition below.
+  </p>
+
+  <div class="glossary-grid">
+    <dl class="glossary-term"><dt>NCCL</dt><dd>NVIDIA Collective Communications Library — implements all-reduce, all-gather, broadcast over NVLink / InfiniBand. The fast path every training framework uses.</dd></dl>
+    <dl class="glossary-term"><dt>SHARP</dt><dd>Scalable Hierarchical Aggregation and Reduction Protocol — performs reductions inside InfiniBand switches, halving all-reduce latency on large clusters.</dd></dl>
+    <dl class="glossary-term"><dt>NVLink</dt><dd>NVIDIA's GPU-to-GPU interconnect. Gen 4 on Hopper (900 GB/s), Gen 5 on Blackwell (1.8 TB/s). Used for tensor-parallel groups inside a node or an NVL72 rack.</dd></dl>
+    <dl class="glossary-term"><dt>NVSwitch</dt><dd>Non-blocking crossbar that joins multiple NVLinks. Extends NVLink from point-to-point to fully-connected 8-GPU (HGX) or 72-GPU (NVL72) domains.</dd></dl>
+    <dl class="glossary-term"><dt>HBM</dt><dd>High-Bandwidth Memory — stacked DRAM co-packaged with the GPU die. H100: 80 GB HBM3 @ 3.35 TB/s; H200: 141 GB HBM3e; B200: 192 GB HBM3e.</dd></dl>
+    <dl class="glossary-term"><dt>TMA</dt><dd>Tensor Memory Accelerator — Hopper feature that asynchronously moves tiles between global and shared memory so SMs don't stall on data.</dd></dl>
+    <dl class="glossary-term"><dt>SM</dt><dd>Streaming Multiprocessor — a GPU's core execution block. H100 has 132 SMs; Blackwell B200 has 148 per die × 2 dies.</dd></dl>
+    <dl class="glossary-term"><dt>MIG</dt><dd>Multi-Instance GPU — hardware partitioning of a single GPU into up to 7 isolated instances, each with its own SMs, L2 cache, and HBM slice.</dd></dl>
+    <dl class="glossary-term"><dt>CUDA</dt><dd>NVIDIA's GPU compute platform and C++ dialect. Everything higher up the stack (cuBLAS, cuDNN, Triton kernels, PyTorch ops) ultimately compiles to CUDA PTX.</dd></dl>
+    <dl class="glossary-term"><dt>PTX</dt><dd>Parallel Thread eXecution — NVIDIA's virtual ISA. CUDA compiles to PTX, which the driver JIT-compiles to hardware SASS for a specific GPU generation.</dd></dl>
+    <dl class="glossary-term"><dt>cuBLAS / cuDNN</dt><dd>NVIDIA's hand-tuned libraries for dense linear algebra (cuBLAS) and neural-net primitives (cuDNN). Used under the hood by every major framework.</dd></dl>
+    <dl class="glossary-term"><dt>Transformer Engine</dt><dd>NVIDIA library that adds FP8 auto-scaling to attention &amp; MLP blocks, used by NeMo, Megatron-LM, and PyTorch's <code>te.Linear</code>.</dd></dl>
+    <dl class="glossary-term"><dt>FP8 / E4M3 / E5M2</dt><dd>8-bit floating-point formats. E4M3 (4 exponent, 3 mantissa) is used for weights/activations in forward/backward; E5M2 for gradients. Halves memory and doubles Tensor Core throughput vs BF16.</dd></dl>
+    <dl class="glossary-term"><dt>BF16</dt><dd>Brain Float 16 — 8 exponent, 7 mantissa bits. Same range as FP32, lower precision. The default training dtype on modern GPUs.</dd></dl>
+    <dl class="glossary-term"><dt>KV-cache</dt><dd>Per-layer cache of attention keys &amp; values retained across decode steps. Dominates inference memory once sequence length grows.</dd></dl>
+    <dl class="glossary-term"><dt>Prefill</dt><dd>The first inference pass, where the whole prompt is consumed and the KV-cache is populated. Compute-bound, parallel across tokens.</dd></dl>
+    <dl class="glossary-term"><dt>Decode</dt><dd>Token-by-token generation after prefill. Memory-bandwidth-bound because every step reads the full KV-cache.</dd></dl>
+    <dl class="glossary-term"><dt>TTFT</dt><dd>Time To First Token — end-to-end latency until the first output token. Dominated by prefill cost for short prompts; by queuing for busy servers.</dd></dl>
+    <dl class="glossary-term"><dt>TPOT / ITL</dt><dd>Time Per Output Token (a.k.a. Inter-Token Latency). Dominated by decode memory bandwidth; roughly <code>KV_bytes / HBM_BW</code> per layer.</dd></dl>
+    <dl class="glossary-term"><dt>Continuous batching</dt><dd>Scheduling technique (vLLM, TGI, TRT-LLM) that adds new requests into a running batch each decode step, instead of waiting for a static batch to finish.</dd></dl>
+    <dl class="glossary-term"><dt>PagedAttention</dt><dd>vLLM's KV-cache allocator — stores KV in fixed-size pages, eliminating fragmentation and enabling prefix sharing.</dd></dl>
+    <dl class="glossary-term"><dt>Speculative decoding</dt><dd>Use a small draft model to propose <em>k</em> tokens, verify them in one big-model forward pass. 2–3× decode speedup with no accuracy loss when drafts accept.</dd></dl>
+    <dl class="glossary-term"><dt>MoE</dt><dd>Mixture of Experts — a layer where a router picks top-k experts per token. Grows parameter count without matching FLOP cost. Mixtral, DeepSeek-V3, GPT-4 all use MoE.</dd></dl>
+    <dl class="glossary-term"><dt>DP / TP / PP</dt><dd>Data Parallel / Tensor Parallel / Pipeline Parallel — the three axes of 3D parallelism. DP replicates, TP shards weights across GPUs, PP shards layers across stages.</dd></dl>
+    <dl class="glossary-term"><dt>ZeRO</dt><dd>Zero Redundancy Optimizer — DeepSpeed's staged sharding of optimizer state (Z1), gradients (Z2), and weights (Z3) across DP ranks. Equivalent to FSDP.</dd></dl>
+    <dl class="glossary-term"><dt>FSDP</dt><dd>Fully Sharded Data Parallel — PyTorch-native equivalent of ZeRO-3. Shards weights, grads, and optimizer states; gathers on-demand during forward/backward.</dd></dl>
+    <dl class="glossary-term"><dt>LoRA / QLoRA</dt><dd>Low-Rank Adaptation — freeze the base model and train small A·B rank-r matrices. QLoRA quantizes the frozen base to 4-bit NF4. Makes fine-tuning 70B feasible on a single 80 GB GPU.</dd></dl>
+    <dl class="glossary-term"><dt>DoRA</dt><dd>Weight-Decomposed LoRA — splits weight updates into magnitude and direction; closes the accuracy gap between LoRA and full fine-tune.</dd></dl>
+    <dl class="glossary-term"><dt>S-LoRA</dt><dd>Multi-LoRA serving pattern — hold hundreds of LoRA adapters in GPU memory and route each request to the right one, amortising the base model.</dd></dl>
+    <dl class="glossary-term"><dt>AWQ / GPTQ</dt><dd>Post-training weight quantization to INT4. AWQ preserves salient-channel scale; GPTQ uses layer-wise Hessian-guided rounding. Both land within ~1 pp of FP16 on most LLMs.</dd></dl>
+    <dl class="glossary-term"><dt>SmoothQuant</dt><dd>INT8 PTQ that migrates activation outliers into weights via per-channel scaling — keeps INT8 accuracy on models with heavy activation tails.</dd></dl>
+    <dl class="glossary-term"><dt>FlashAttention</dt><dd>Tiled, IO-aware attention kernel (Tri Dao et al.) — fuses softmax and the matmuls so that activations never materialize in HBM. 2–4× speedup, exact.</dd></dl>
+    <dl class="glossary-term"><dt>DCGM</dt><dd>Data Center GPU Manager — NVIDIA's telemetry &amp; diagnostics daemon. The dcgm-exporter ships per-GPU counters to Prometheus.</dd></dl>
+    <dl class="glossary-term"><dt>GPUDirect RDMA / Storage</dt><dd>Lets the NIC or NVMe device DMA straight into GPU HBM, skipping host memory. Essential for IB-attached training and checkpoint I/O.</dd></dl>
+    <dl class="glossary-term"><dt>Magnum IO</dt><dd>Umbrella brand covering NVIDIA's I/O libraries: NCCL, GPUDirect, NVSHMEM, UCX. Think "the data-movement layer."</dd></dl>
+    <dl class="glossary-term"><dt>NVL72</dt><dd>A single rack of 72 Blackwell GPUs connected by 5th-gen NVLink into one coherent domain — 72-way tensor parallel without ever touching the network.</dd></dl>
+    <dl class="glossary-term"><dt>BlueField DPU</dt><dd>Data Processing Unit — SmartNIC with ARM cores. Offloads networking, storage, and security from the host so the x86/Grace CPU can focus on ML workloads.</dd></dl>
+    <dl class="glossary-term"><dt>Spectrum-X</dt><dd>NVIDIA's Ethernet-based AI fabric — Spectrum-4 switch + BlueField-3 DPU + adaptive routing. RoCE-grade performance on standard Ethernet operations.</dd></dl>
+    <dl class="glossary-term"><dt>InfiniBand NDR</dt><dd>400 Gb/s per-port lossless fabric used in DGX SuperPOD. Pairs with SHARP for in-network reductions.</dd></dl>
+    <dl class="glossary-term"><dt>NIM</dt><dd>NVIDIA Inference Microservice — OCI container bundling Triton + TRT-LLM + a model + OpenAI-compatible API. The enterprise "drop-in" serving unit.</dd></dl>
+    <dl class="glossary-term"><dt>Dynamo</dt><dd>NVIDIA's disaggregated inference framework — separates prefill and decode workers, routes KV-cache between them. Targets multi-tenant scale.</dd></dl>
+    <dl class="glossary-term"><dt>NGC</dt><dd>NVIDIA GPU Cloud — NVIDIA's registry of optimised containers and model checkpoints. Monthly releases lock driver + CUDA + framework combos.</dd></dl>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
      SECTION 10 – REFERENCES
 ══════════════════════════════════════════ -->
 <section id="references" style="border-top:1px solid #1e1e1e; padding: 4rem 2rem; max-width:1200px; margin:0 auto;">
@@ -1549,171 +2219,9 @@ curl http://triton-llm.default.svc.cluster.local:8000/v2/models/tiny-gpt/generat
   <p style="margin-top:.5rem; color:#555;">nvidia-info &nbsp;|&nbsp; 2025–2026</p>
 </footer>
 
-<!-- ── Chart.js Scripts ── -->
-<script>
-Chart.defaults.color = '#aaa';
-Chart.defaults.borderColor = '#222';
-
-const PALETTE_GREEN = ['#76b900','#5a8e00','#3d6000','#96d900','#b8f040','#d4f980'];
-const PALETTE_BLUE  = ['#00c8ff','#0096cc','#006499','#00e4ff','#66e8ff','#99f0ff'];
-const PALETTE_MIX   = ['#76b900','#00c8ff','#ffd700','#ff6b35','#a855f7','#00e099'];
-
-// Chart 1 – Training throughput
-new Chart(document.getElementById('chartTraining'), {
-  type: 'bar',
-  data: {
-    labels: ['A100 SXM4\n(BF16)', 'H100 SXM5\n(BF16)', 'H100 SXM5\n(FP8)', 'H200 SXM\n(BF16)', 'H200 SXM\n(FP8)'],
-    datasets: [{
-      label: 'Tokens/sec per GPU (LLaMA-2 70B)',
-      data: [1350, 2800, 4200, 3400, 5100],
-      backgroundColor: PALETTE_GREEN,
-      borderRadius: 6,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: '#1e1e1e' }, ticks: { color: '#888' } },
-      x: { grid: { display: false }, ticks: { color: '#888' } }
-    }
-  }
-});
-
-// Chart 2 – Inference throughput
-new Chart(document.getElementById('chartInference'), {
-  type: 'bar',
-  data: {
-    labels: ['HF Transformers', 'TGI', 'vLLM', 'TensorRT-LLM\n(FP16)', 'TensorRT-LLM\n(FP8)', 'SGLang'],
-    datasets: [{
-      label: 'Output tokens/sec (LLaMA-2 70B, TP=8)',
-      data: [320, 980, 2400, 3200, 4800, 2900],
-      backgroundColor: PALETTE_BLUE,
-      borderRadius: 6,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: '#1e1e1e' }, ticks: { color: '#888' } },
-      x: { grid: { display: false }, ticks: { color: '#888', font: { size: 10 } } }
-    }
-  }
-});
-
-// Chart 3 – Memory requirements
-new Chart(document.getElementById('chartMemory'), {
-  type: 'bar',
-  data: {
-    labels: ['FP32', 'BF16', 'FP8', 'INT8\n(GPTQ)', 'INT4\n(AWQ)', 'INT4\n(2-bit)'],
-    datasets: [{
-      label: 'GPU Memory Required (GB)',
-      data: [560, 280, 140, 140, 70, 35],
-      backgroundColor: ['#ff6b35','#ffd700','#76b900','#00c8ff','#a855f7','#00e099'],
-      borderRadius: 6,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: '#1e1e1e' }, ticks: { color: '#888' } },
-      x: { grid: { display: false }, ticks: { color: '#888' } }
-    }
-  }
-});
-
-// Chart 4 – GPU generation TFLOPS
-new Chart(document.getElementById('chartGpuGen'), {
-  type: 'line',
-  data: {
-    labels: ['V100\n(2017)', 'A100\n(2020)', 'H100\n(2022)', 'H200\n(2024)', 'B200\n(2025)', 'GB200\n(2025)'],
-    datasets: [{
-      label: 'BF16 TFLOPS',
-      data: [125, 312, 989, 989, 2250, 2500],
-      borderColor: '#76b900',
-      backgroundColor: 'rgba(118,185,0,.1)',
-      fill: true, tension: 0.3, pointRadius: 6, pointBackgroundColor: '#76b900',
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: '#1e1e1e' }, ticks: { color: '#888' } },
-      x: { grid: { display: false }, ticks: { color: '#888' } }
-    }
-  }
-});
-
-// Chart 5 – Communication overhead
-new Chart(document.getElementById('chartComm'), {
-  type: 'radar',
-  data: {
-    labels: ['AllReduce\nVolume', 'Memory\nPressure', 'Scaling\nEfficiency', 'Impl.\nComplexity', 'Fault\nTolerance'],
-    datasets: [
-      {
-        label: 'Data Parallel (ZeRO-1)',
-        data: [9, 9, 7, 2, 8],
-        borderColor: '#76b900', backgroundColor: 'rgba(118,185,0,.15)', borderWidth: 2,
-      },
-      {
-        label: 'Tensor Parallel',
-        data: [6, 4, 9, 7, 5],
-        borderColor: '#00c8ff', backgroundColor: 'rgba(0,200,255,.1)', borderWidth: 2,
-      },
-      {
-        label: 'Pipeline Parallel',
-        data: [3, 3, 8, 8, 6],
-        borderColor: '#ffd700', backgroundColor: 'rgba(255,215,0,.1)', borderWidth: 2,
-      },
-      {
-        label: 'ZeRO-3 (Full Sharding)',
-        data: [7, 2, 8, 5, 7],
-        borderColor: '#ff6b35', backgroundColor: 'rgba(255,107,53,.1)', borderWidth: 2,
-      },
-    ]
-  },
-  options: {
-    responsive: true,
-    scales: {
-      r: {
-        min: 0, max: 10,
-        grid: { color: '#222' }, angleLines: { color: '#333' },
-        ticks: { color: '#555', stepSize: 2, backdropColor: 'transparent' },
-        pointLabels: { color: '#aaa', font: { size: 10 } },
-      }
-    },
-    plugins: {
-      legend: { labels: { color: '#aaa', font: { size: 11 } } }
-    }
-  }
-});
-
-// Chart 6 – Inference engine comparison
-new Chart(document.getElementById('chartEngines'), {
-  type: 'bar',
-  data: {
-    labels: ['HuggingFace\nTransformers', 'TGI', 'LMDeploy', 'vLLM', 'SGLang', 'TensorRT-LLM\n(FP8)'],
-    datasets: [{
-      label: 'Relative throughput (1× = HF baseline)',
-      data: [1, 3.1, 4.2, 7.5, 9.1, 15.0],
-      backgroundColor: PALETTE_MIX,
-      borderRadius: 6,
-    }]
-  },
-  options: {
-    indexAxis: 'y',
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { beginAtZero: true, grid: { color: '#1e1e1e' }, ticks: { color: '#888' } },
-      y: { grid: { display: false }, ticks: { color: '#aaa', font: { size: 11 } } }
-    }
-  }
-});
-</script>
+<!-- ── Scripts (extracted) ── -->
+<script src="charts.js"></script>
+<script src="site.js"></script>
 
 </body>
 </html>
